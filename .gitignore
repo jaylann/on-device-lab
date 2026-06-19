@@ -1,0 +1,22 @@
+# Xcode / SPM
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+
+# Models (large — fetch with ./fetch-models.sh)
+models/
+
+# Python bench
+bench/.venv/
+bench/__pycache__/
+bench/results.json
+bench/cloud_results.json
+*.pyc
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
