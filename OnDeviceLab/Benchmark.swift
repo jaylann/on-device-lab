@@ -19,7 +19,6 @@ struct BenchSample {
     let ttft: TimeInterval        // seconds to the first token
     let tokPerSec: Double         // sustained decode throughput
     let tokens: Int               // generated tokens counted
-    let promptTokens: Int         // prompt length (from the model, for context)
 }
 
 struct ModelBenchResult: Identifiable {
@@ -29,7 +28,6 @@ struct ModelBenchResult: Identifiable {
     let ttftP50Ms: Double
     let ttftP99Ms: Double
     let tokPerSecP50: Double
-    let promptTokens: Int
     let runs: Int
 }
 
@@ -79,12 +77,7 @@ final class BenchmarkRunner {
     //  measure() — generate once, time it. THIS is the exercise.
     // ─────────────────────────────────────────────────────────────────────────
     private func measure(container: ModelContainer, prompt: String, maxTokens: Int) async throws -> BenchSample {
-        var params = GenerateParameters()
-        params.temperature = 0.3
-        params.maxTokens = maxTokens
-        // Qwen3 thinks by default; NeatPass runs extraction non-thinking for fast clean JSON, so match that.
-        let session = ChatSession(container, generateParameters: params,
-                                  additionalContext: ["enable_thinking": false])
+        let session = ModelCatalog.chatSession(container, maxTokens: maxTokens)
 
         let start = Date()
         var firstTokenTime: Date? = nil
@@ -112,7 +105,7 @@ final class BenchmarkRunner {
         let ttft = (firstTokenTime ?? end).timeIntervalSince(start)
         let decodeSeconds = max(end.timeIntervalSince(firstTokenTime ?? start), 0.0001)
         let tokPerSec = Double(tokenCount) / decodeSeconds
-        return BenchSample(ttft: ttft, tokPerSec: tokPerSec, tokens: tokenCount, promptTokens: 0)
+        return BenchSample(ttft: ttft, tokPerSec: tokPerSec, tokens: tokenCount)
     }
 
     private func summarize(model: LabModel, samples: [BenchSample]) -> ModelBenchResult {
@@ -124,14 +117,17 @@ final class BenchmarkRunner {
             ttftP50Ms: median(ttfts),
             ttftP99Ms: percentile(ttfts, 0.99),
             tokPerSecP50: median(tps),
-            promptTokens: samples.last?.promptTokens ?? 0,
             runs: samples.count)
     }
 
-    private func median(_ a: [Double]) -> Double { a.isEmpty ? 0 : a[a.count / 2] }
+    private func median(_ a: [Double]) -> Double { percentile(a, 0.5) }
+
+    /// Linear-interpolated percentile over a pre-sorted array (true median at q = 0.5).
     private func percentile(_ a: [Double], _ q: Double) -> Double {
-        guard !a.isEmpty else { return 0 }
-        let k = Int((q * Double(a.count - 1)).rounded())
-        return a[min(a.count - 1, max(0, k))]
+        guard a.count > 1 else { return a.first ?? 0 }
+        let rank = q * Double(a.count - 1)
+        let lo = Int(rank.rounded(.down))
+        let hi = Int(rank.rounded(.up))
+        return a[lo] + (a[hi] - a[lo]) * (rank - Double(lo))
     }
 }

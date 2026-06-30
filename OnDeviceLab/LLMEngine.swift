@@ -51,12 +51,7 @@ final class LLMEngine {
         ttftMs = 0
         tokensPerSecond = 0
 
-        var params = GenerateParameters()
-        params.temperature = 0.3
-        params.maxTokens = maxTokens
-        // Qwen3 thinks by default; keep the chat box answering directly (no <think> trace), as NeatPass does.
-        let session = ChatSession(container, generateParameters: params,
-                                  additionalContext: ["enable_thinking": false])
+        let session = ModelCatalog.chatSession(container, maxTokens: maxTokens)
 
         let start = Date()
         var first: Date?
@@ -64,8 +59,9 @@ final class LLMEngine {
         do {
             for try await chunk in session.streamResponse(to: prompt) {
                 if first == nil {
-                    first = Date()
-                    ttftMs = first!.timeIntervalSince(start) * 1000
+                    let now = Date()
+                    first = now
+                    ttftMs = now.timeIntervalSince(start) * 1000
                 }
                 count += 1
                 output += chunk

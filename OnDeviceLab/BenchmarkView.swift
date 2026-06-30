@@ -3,6 +3,7 @@ import SwiftUI
 struct BenchmarkView: View {
     let models: [LabModel]
     @State private var runner = BenchmarkRunner()
+    @State private var exportURL: URL?
 
     var body: some View {
         ScrollView {
@@ -18,6 +19,13 @@ struct BenchmarkView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .ambientGradientBackground(tint: DS.accent)
+        .onChange(of: runner.isRunning) { _, running in
+            // Write the export file once, when a run finishes — not on every redraw.
+            guard !running else { exportURL = nil; return }
+            exportURL = runner.results.isEmpty ? nil
+                : ResultsExporter.writeTempFile(
+                    ResultsExporter.payload(from: runner.results, device: runner.device, maxTokens: 128))
+        }
         .navigationTitle("Benchmark")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
@@ -94,9 +102,4 @@ struct BenchmarkView: View {
         }
     }
 
-    private var exportURL: URL? {
-        guard !runner.results.isEmpty else { return nil }
-        let payload = ResultsExporter.payload(from: runner.results, device: runner.device, maxTokens: 128)
-        return ResultsExporter.writeTempFile(payload)
-    }
 }

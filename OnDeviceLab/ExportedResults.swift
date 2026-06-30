@@ -7,7 +7,6 @@ struct ExportResult: Codable {
     let ttft_p50_s: Double
     let ttft_p99_s: Double
     let decode_tps_p50: Double
-    let prompt_tokens: Int
     let runs: Int
 }
 
@@ -35,7 +34,6 @@ enum ResultsExporter {
                     ttft_p50_s: ($0.ttftP50Ms / 1000).rounded(toPlaces: 4),
                     ttft_p99_s: ($0.ttftP99Ms / 1000).rounded(toPlaces: 4),
                     decode_tps_p50: $0.tokPerSecP50.rounded(toPlaces: 1),
-                    prompt_tokens: $0.promptTokens,
                     runs: $0.runs)
             })
     }

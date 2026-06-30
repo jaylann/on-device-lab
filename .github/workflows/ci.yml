@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (macOS + iOS Simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)/Contents/Developer"
+
+      - name: Build both schemes for macOS
+        run: |
+          set -euo pipefail
+          for scheme in "OnDeviceLab" "OnDeviceLab (Solution)"; do
+            xcodebuild -project OnDeviceLab.xcodeproj -scheme "$scheme" \
+              -destination 'platform=macOS' \
+              CODE_SIGNING_ALLOWED=NO build
+          done
+
+      - name: Build for iOS Simulator
+        run: |
+          set -euo pipefail
+          xcodebuild -project OnDeviceLab.xcodeproj -scheme "OnDeviceLab" \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build

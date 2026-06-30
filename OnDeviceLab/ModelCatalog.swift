@@ -53,4 +53,15 @@ enum ModelCatalog {
             progress(p.fractionCompleted)
         }
     }
+
+    /// A chat session configured the way the talk uses Qwen3, shared by the chat engine and the
+    /// benchmark so they stay in lock-step: low temperature, and non-thinking — NeatPass runs
+    /// extraction without a `<think>` trace for fast, clean JSON, so we match that here.
+    static func chatSession(_ container: ModelContainer, maxTokens: Int) -> ChatSession {
+        var params = GenerateParameters()
+        params.temperature = 0.3
+        params.maxTokens = maxTokens
+        return ChatSession(container, generateParameters: params,
+                           additionalContext: ["enable_thinking": false])
+    }
 }
