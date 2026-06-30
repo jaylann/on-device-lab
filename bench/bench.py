@@ -15,7 +15,7 @@ Usage:
     pip install -r requirements.txt
     python bench.py                       # default models, 5 runs
     python bench.py --runs 8 --max-tokens 200
-    python bench.py --models mlx-community/Qwen2.5-0.5B-Instruct-4bit
+    python bench.py --models mlx-community/Qwen3-0.6B-4bit
 """
 from __future__ import annotations
 
@@ -28,10 +28,10 @@ import sys
 import time
 from dataclasses import dataclass, asdict, field
 
-# Models matching the talk's "extraction class" — small, 4-bit, runs on nearly everything.
+# Models matching the talk: Qwen3 0.6B (extraction class) and 1.7B (the model NeatPass ships).
 DEFAULT_MODELS = [
-    "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
-    "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
+    "mlx-community/Qwen3-0.6B-4bit",
+    "mlx-community/Qwen3-1.7B-4bit",
 ]
 
 # A realistic, on-theme prompt: extract structured fields from a messy ticket blob.
@@ -106,12 +106,20 @@ class RunStats:
 
 
 def build_prompt(tokenizer, raw: str) -> str:
-    """Wrap the raw prompt in the model's chat template if it has one."""
+    """Wrap the raw prompt in the model's chat template if it has one.
+
+    enable_thinking=False keeps Qwen3 in non-thinking mode (the way NeatPass runs extraction);
+    it's an extra template kwarg that models without it simply ignore.
+    """
     msgs = [{"role": "user", "content": raw}]
     try:
-        return tokenizer.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False)
+        return tokenizer.apply_chat_template(
+            msgs, add_generation_prompt=True, tokenize=False, enable_thinking=False)
     except Exception:
-        return raw
+        try:
+            return tokenizer.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False)
+        except Exception:
+            return raw
 
 
 def _peak_mem_gb() -> float:

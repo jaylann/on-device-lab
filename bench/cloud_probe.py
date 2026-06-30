@@ -45,7 +45,8 @@ def probe_openai(client, base_url, model, key, prompt, max_tokens):
     body = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": max_tokens,
+        # Newer OpenAI models (gpt-5+) require max_completion_tokens; it's also accepted by gpt-4o.
+        "max_completion_tokens": max_tokens,
         "stream": True,
         "stream_options": {"include_usage": True},
     }
@@ -55,7 +56,8 @@ def probe_openai(client, base_url, model, key, prompt, max_tokens):
     n_chunks = 0
     usage_completion = 0
     with client.stream("POST", url, json=body, headers=headers) as r:
-        r.raise_for_status()
+        if r.status_code >= 400:
+            raise RuntimeError(f"{r.status_code}: {r.read().decode('utf-8', 'replace')[:400]}")
         for line in r.iter_lines():
             if not line or not line.startswith("data:"):
                 continue
@@ -96,7 +98,8 @@ def probe_anthropic(client, base_url, model, key, prompt, max_tokens):
     n_chunks = 0
     out_tokens = 0
     with client.stream("POST", url, json=body, headers=headers) as r:
-        r.raise_for_status()
+        if r.status_code >= 400:
+            raise RuntimeError(f"{r.status_code}: {r.read().decode('utf-8', 'replace')[:400]}")
         for line in r.iter_lines():
             if not line or not line.startswith("data:"):
                 continue
@@ -132,6 +135,8 @@ def main() -> int:
     ap.add_argument("--prompt", default=DEFAULT_PROMPT)
     ap.add_argument("--out", default="cloud_results.json")
     args = ap.parse_args()
+    if not args.base_url:
+        args.base_url = "https://api.openai.com/v1" if args.backend == "openai" else "https://api.anthropic.com"
 
     key = os.environ.get("CLOUD_API_KEY") or os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
     if not key:

@@ -82,7 +82,9 @@ final class BenchmarkRunner {
         var params = GenerateParameters()
         params.temperature = 0.3
         params.maxTokens = maxTokens
-        let session = ChatSession(container, generateParameters: params)
+        // Qwen3 thinks by default; NeatPass runs extraction non-thinking for fast clean JSON, so match that.
+        let session = ChatSession(container, generateParameters: params,
+                                  additionalContext: ["enable_thinking": false])
 
         let start = Date()
         var firstTokenTime: Date? = nil

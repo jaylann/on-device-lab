@@ -24,7 +24,7 @@ git clone https://github.com/jaylann/on-device-lab
 cd on-device-lab
 open OnDeviceLab.xcodeproj      # then ⌘R
 ```
-Pick **Qwen2.5 0.5B · 4-bit**, press **Load** (first load downloads ~0.3 GB, or reads the local
+Pick **Qwen3 0.6B · 4-bit**, press **Load** (first load downloads ~0.3 GB, or reads the local
 share — see below), type a prompt, press **Send**. Tokens stream. That's the whole on-device stack.
 
 ---
@@ -32,7 +32,7 @@ share — see below), type a prompt, press **Send**. Tokens stream. That's the w
 ## The exercise — three milestones
 
 ### M1 · Run it
-Load Qwen 0.5B, prompt it, watch the stream. Done above.
+Load Qwen3 0.6B, prompt it, watch the stream. Done above.
 
 ### M2 · Measure it  ← the actual exercise
 Open **`OnDeviceLab/Benchmark.swift`** and find `measure(...)`. The loop, warmup, percentiles and
@@ -50,9 +50,9 @@ Export results as JSON from the sheet (AirDrop from iPhone → Mac). The JSON ma
 harness schema, so `bench/apply_bench.py` can drop your numbers straight onto the slide.
 
 ### M3 · Stress it
-Switch to **SmolLM2 1.7B** and feel what +1B params costs. Send the long-context prompt and watch
-the window fill. **Turn off Wi-Fi** mid-generation — the chip flips to *offline* and nothing else
-changes. That's the entire thesis of the talk.
+Switch to **Qwen3 4B** and feel what several billion more params cost. Pick **Long-context prompt**
+from the **Sample prompts** menu (top-right) and watch the window fill. **Turn off Wi-Fi**
+mid-generation — generation keeps streaming, fully offline. That's the entire thesis of the talk.
 
 Finished early? Make the model return strict JSON for a messy ticket, then try to break it.
 
@@ -80,9 +80,9 @@ Three 4-bit models, all from `mlx-community`:
 
 | Model | Class | Size |
 |---|---|---|
-| `Qwen2.5-0.5B-Instruct-4bit` | extraction | ~0.3 GB |
-| `Qwen2.5-1.5B-Instruct-4bit` | robust (NeatPass class) | ~1 GB |
-| `SmolLM2-1.7B-Instruct-4bit` | stress (M3) | ~1 GB |
+| `Qwen3-0.6B-4bit` | extraction | ~0.3 GB |
+| `Qwen3-1.7B-4bit` | robust (the model NeatPass ships) | ~1 GB |
+| `Qwen3-4B-4bit` | stress (M3) | ~2.3 GB |
 
 By default the app downloads from Hugging Face on first use. To avoid 30 simultaneous downloads at
 the venue, pre-stage them and use the local share:
@@ -102,5 +102,5 @@ the venue, pre-stage them and use the local share:
 - `Benchmark` wraps the same stream to time it — the teaching core.
 
 ## License
-MIT — see [LICENSE](LICENSE). Model weights are under their own licenses (Qwen, SmolLM).
+MIT — see [LICENSE](LICENSE). Model weights are under their own licenses (Qwen3, Apache-2.0).
 Built by [Justin Lanfermann](https://lanfermann.dev) · [neatpass.app](https://neatpass.app).

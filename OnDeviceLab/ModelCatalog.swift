@@ -4,29 +4,29 @@ import MLXLMCommon
 
 /// One selectable model in the lab.
 struct LabModel: Identifiable, Hashable {
-    let id: String          // Hugging Face repo id, e.g. "mlx-community/Qwen2.5-0.5B-Instruct-4bit"
+    let id: String          // Hugging Face repo id, e.g. "mlx-community/Qwen3-0.6B-4bit"
     let displayName: String
     let note: String
 }
 
 enum ModelCatalog {
-    static let qwen05B = LabModel(
-        id: "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
-        displayName: "Qwen2.5 0.5B · 4-bit",
+    static let qwen06B = LabModel(
+        id: "mlx-community/Qwen3-0.6B-4bit",
+        displayName: "Qwen3 0.6B · 4-bit",
         note: "Extraction class · ~0.3 GB · runs on nearly everything")
-    static let qwen15B = LabModel(
-        id: "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
-        displayName: "Qwen2.5 1.5B · 4-bit",
-        note: "Robust class · ~1 GB · the NeatPass weight class")
-    static let smol17B = LabModel(
-        id: "mlx-community/SmolLM2-1.7B-Instruct-4bit",
-        displayName: "SmolLM2 1.7B · 4-bit",
-        note: "Stress model (M3) · feel what +1B params costs")
+    static let qwen17B = LabModel(
+        id: "mlx-community/Qwen3-1.7B-4bit",
+        displayName: "Qwen3 1.7B · 4-bit",
+        note: "Robust class · ~1 GB · the model NeatPass ships")
+    static let qwen4B = LabModel(
+        id: "mlx-community/Qwen3-4B-4bit",
+        displayName: "Qwen3 4B · 4-bit",
+        note: "Stress model (M3) · ~2.3 GB · feel the reasoning class")
 
-    static let all: [LabModel] = [qwen05B, qwen15B, smol17B]
+    static let all: [LabModel] = [qwen06B, qwen17B, qwen4B]
 
-    /// The first two are what slide 21 reports; SmolLM is the M3 stress model.
-    static let benchmarkSet: [LabModel] = [qwen05B, qwen15B]
+    /// The first two are what slide 21 reports; the 4B is the M3 stress model.
+    static let benchmarkSet: [LabModel] = [qwen06B, qwen17B]
 
     /// Local model share (slide 26): if `~/Documents/models/<repo-leaf>` exists, load it with
     /// no network. Otherwise fall back to a Hugging Face download. `fetch-models.sh` stages this.

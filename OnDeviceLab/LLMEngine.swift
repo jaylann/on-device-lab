@@ -54,7 +54,9 @@ final class LLMEngine {
         var params = GenerateParameters()
         params.temperature = 0.3
         params.maxTokens = maxTokens
-        let session = ChatSession(container, generateParameters: params)
+        // Qwen3 thinks by default; keep the chat box answering directly (no <think> trace), as NeatPass does.
+        let session = ChatSession(container, generateParameters: params,
+                                  additionalContext: ["enable_thinking": false])
 
         let start = Date()
         var first: Date?

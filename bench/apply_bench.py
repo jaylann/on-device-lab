@@ -25,7 +25,17 @@ def model_name(model_id: str) -> str:
     leaf = model_id.split("/")[-1]
     m = re.search(r"(\d+\.?\d*\s*B)", leaf, re.I)
     size = m.group(1).replace(" ", "") if m else leaf
-    fam = "Qwen" if "qwen" in leaf.lower() else ("SmolLM" if "smol" in leaf.lower() else leaf.split("-")[0])
+    low = leaf.lower()
+    if "qwen3" in low:
+        fam = "Qwen3"
+    elif "qwen2" in low:
+        fam = "Qwen2.5"
+    elif "qwen" in low:
+        fam = "Qwen"
+    elif "smol" in low:
+        fam = "SmolLM"
+    else:
+        fam = leaf.split("-")[0]
     return f"{fam} {size}" if m else leaf
 
 

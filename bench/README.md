@@ -10,7 +10,7 @@ and (optionally) the same numbers against a real cloud API for an honest compari
 ```bash
 ./run.sh                         # creates .venv on first run, then benchmarks → results.json + table
 RUNS=8 MAX_TOKENS=200 ./run.sh
-python bench.py --models mlx-community/Qwen2.5-0.5B-Instruct-4bit --runs 5   # manual
+python bench.py --models mlx-community/Qwen3-0.6B-4bit --runs 5   # manual
 ```
 `results.json` carries the device label, per-model TTFT p50/p99, decode tok/s, and peak RAM.
 

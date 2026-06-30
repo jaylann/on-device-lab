@@ -9,9 +9,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 MODELS=(
-  "mlx-community/Qwen2.5-0.5B-Instruct-4bit"
-  "mlx-community/Qwen2.5-1.5B-Instruct-4bit"
-  "mlx-community/SmolLM2-1.7B-Instruct-4bit"
+  "mlx-community/Qwen3-0.6B-4bit"
+  "mlx-community/Qwen3-1.7B-4bit"
+  "mlx-community/Qwen3-4B-4bit"
 )
 PY="${PYTHON:-python3}"
 
