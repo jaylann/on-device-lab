@@ -13,6 +13,7 @@
 		45096D61F90C0FCE1D533DE7 /* Benchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A518C9A378594A8B05BA3E75 /* Benchmark.swift */; };
 		4674AB02C8BC54056ACE9540 /* BenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61D00D3142972F34C37533B0 /* BenchmarkView.swift */; };
 		49DAFC871715B24F89089027 /* ModelPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853270F8F14870BE7A3A8C1C /* ModelPickerSheet.swift */; };
+		50CA16F6F952939798CF1E77 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7A3B843D9C1692D5A9E91D08 /* Assets.xcassets */; };
 		6D4B55C9295CDF0EF19C8DD4 /* LLMEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6336DCA131A944FC715485B2 /* LLMEngine.swift */; };
 		73717DEE23DEE6D3724297BC /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = D6875C215129C825481F5A8B /* MLXLLM */; };
 		7662B4A99AF0B10C75CF6D5D /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 57752BA86FD4E95796BB0677 /* MLXLMCommon */; };
@@ -28,6 +29,7 @@
 		49218CCB82BF0F5E5E364BBC /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
 		61D00D3142972F34C37533B0 /* BenchmarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkView.swift; sourceTree = "<group>"; };
 		6336DCA131A944FC715485B2 /* LLMEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMEngine.swift; sourceTree = "<group>"; };
+		7A3B843D9C1692D5A9E91D08 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		853270F8F14870BE7A3A8C1C /* ModelPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPickerSheet.swift; sourceTree = "<group>"; };
 		A518C9A378594A8B05BA3E75 /* Benchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Benchmark.swift; sourceTree = "<group>"; };
 		BE4EB50F374F8803DE524275 /* DeviceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInfo.swift; sourceTree = "<group>"; };
@@ -61,6 +63,7 @@
 		66AE785976F86501529030E9 /* OnDeviceLab */ = {
 			isa = PBXGroup;
 			children = (
+				7A3B843D9C1692D5A9E91D08 /* Assets.xcassets */,
 				A518C9A378594A8B05BA3E75 /* Benchmark.swift */,
 				61D00D3142972F34C37533B0 /* BenchmarkView.swift */,
 				481DB37D09C30B6431949DF4 /* ContentView.swift */,
@@ -92,6 +95,7 @@
 			buildConfigurationList = 3A84CF3FB6C9303A0BB20A77 /* Build configuration list for PBXNativeTarget "OnDeviceLab" */;
 			buildPhases = (
 				DF065A22565023FC075997A1 /* Sources */,
+				5507687056319254B082E007 /* Resources */,
 				CB59C94C5D5DDC3D0EBB059D /* Frameworks */,
 			);
 			buildRules = (
@@ -140,6 +144,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5507687056319254B082E007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				50CA16F6F952939798CF1E77 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		DF065A22565023FC075997A1 /* Sources */ = {
