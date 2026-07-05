@@ -61,16 +61,21 @@ struct ContextStressView: View {
 
     private var resultsTable: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Results").font(.caption2.weight(.semibold)).textCase(.uppercase).foregroundStyle(.secondary)
+            Eyebrow("Results")
+            tableHeader
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 0) {
                         if runner.rows.isEmpty {
                             Text("Pick a size, pick engines, run — rows accumulate so you can watch TTFT climb as the prompt grows.")
                                 .font(.caption).foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 6)
                         }
-                        ForEach(runner.rows) { row in resultRow(row) }
+                        ForEach(runner.rows) { row in
+                            resultRow(row)
+                            Divider().opacity(0.5)
+                        }
                         Color.clear.frame(height: 1).id("rows-bottom")
                     }
                 }
@@ -84,25 +89,44 @@ struct ContextStressView: View {
         .glassTile(radius: DS.Radius.card)
     }
 
+    private var tableHeader: some View {
+        HStack(spacing: 10) {
+            Text("Engine")
+                .frame(minWidth: 90, alignment: .leading)
+            Spacer(minLength: 0)
+            Text("Prompt")
+                .frame(width: 90, alignment: .trailing)
+            Text("TTFT")
+                .frame(width: 90, alignment: .trailing)
+            Text("Result")
+                .frame(minWidth: 110, alignment: .trailing)
+        }
+        .font(DS.Typo.label)
+        .kerning(0.8)
+        .textCase(.uppercase)
+        .foregroundStyle(.secondary)
+        .padding(.bottom, 2)
+    }
+
     private func resultRow(_ row: ContextStressRunner.ResultRow) -> some View {
         HStack(spacing: 10) {
             EngineBadge(text: row.badge)
             Text(row.engineName)
-                .font(.caption.weight(.semibold))
+                .font(.footnote.weight(.semibold))
                 .lineLimit(1).truncationMode(.tail)
-                .frame(minWidth: 90, alignment: .leading)
-            Text("~\(row.approxTokens.formatted()) tok")
-                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            Text("~\(row.approxTokens.formatted())")
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(.secondary)
                 .frame(width: 90, alignment: .trailing)
             Text(row.ttftMs.map { String(format: "%.0f ms", $0) } ?? "—")
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .frame(width: 70, alignment: .trailing)
-            Spacer(minLength: 0)
+                .font(DS.Typo.statValueSmall)
+                .contentTransition(.numericText())
+                .frame(width: 90, alignment: .trailing)
             outcomeView(row)
+                .frame(minWidth: 110, alignment: .trailing)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .glassTile(radius: DS.Radius.chip)
+        .padding(.vertical, 10)
     }
 
     @ViewBuilder private func outcomeView(_ row: ContextStressRunner.ResultRow) -> some View {
@@ -119,11 +143,13 @@ struct ContextStressView: View {
             }
         case .ok(let tokPerSec):
             StatusChip(
-                text: String(format: "✓ %@%.0f tok/s", row.tokensEstimated ? "≈" : "", tokPerSec),
-                color: .green)
+                text: String(format: "%@%.0f tok/s", row.tokensEstimated ? "≈" : "", tokPerSec),
+                color: .green, icon: "checkmark")
         case .failed(let reason):
             if case .contextOverflow = reason {
-                StatusChip(text: "⛔ \(row.contextWindow.formatted())-token hard limit", color: .red)
+                // The money shot of this tab: the hard wall, unmissable.
+                StatusChip(text: "\(row.contextWindow.formatted())-token hard limit",
+                           color: .red, icon: "nosign", prominent: true)
             } else {
                 StatusChip(reason: reason)
             }

@@ -1,16 +1,23 @@
 import SwiftUI
 
 /// The race: every engine answers the same prompt, side by side, with live
-/// TTFT and throughput. Unavailable engines stay on screen, greyed, with the
-/// reason — that asymmetry is part of the story.
+/// TTFT and throughput reading like dashboard instruments. Unavailable engines
+/// keep their lane — calm, explained — because that asymmetry is the story.
 struct ArenaView: View {
     @State private var runner = ArenaRunner()
     @State private var promptText = PromptLibrary.carRange
+
+    private let presets: [(title: String, prompt: String)] = [
+        ("Range question", PromptLibrary.carRange),
+        ("Receipt extraction", PromptLibrary.chargingInvoice),
+        ("Why on-device?", PromptLibrary.chatDefault),
+    ]
 
     var body: some View {
         NavigationStack {
             VStack(spacing: DS.Space.section) {
                 lanes
+                presetRow
                 composer
             }
             .padding(DS.Space.gutter)
@@ -20,8 +27,7 @@ struct ArenaView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .primaryAction) { presetMenu }
-                ToolbarItem(placement: .primaryAction) { modeToggle }
+                ToolbarItem(placement: .primaryAction) { modeMenu }
             }
         }
     }
@@ -54,22 +60,32 @@ struct ArenaView: View {
 
     // MARK: Controls
 
-    private var presetMenu: some View {
-        Menu {
-            Button("Driver range question") { promptText = PromptLibrary.carRange }
-            Button("Charging receipt extraction") { promptText = PromptLibrary.chargingInvoice }
-            Button("Why on-device?") { promptText = PromptLibrary.chatDefault }
-        } label: {
-            Label("Presets", systemImage: "text.badge.plus")
+    /// One-click preset chips — no menu digging mid-talk.
+    private var presetRow: some View {
+        HStack(spacing: DS.Space.row) {
+            ForEach(presets, id: \.title) { preset in
+                EngineChip(
+                    title: preset.title,
+                    selected: promptText == preset.prompt,
+                    enabled: !runner.isRunning
+                ) { promptText = preset.prompt }
+            }
+            Spacer(minLength: 0)
         }
     }
 
-    private var modeToggle: some View {
-        Picker("Mode", selection: $runner.parallel) {
-            Text("Parallel").tag(true)
-            Text("Sequential").tag(false)
+    /// Parallel/Sequential lives in the toolbar as quiet chrome — a labelled
+    /// menu, not a raw segmented picker.
+    private var modeMenu: some View {
+        Menu {
+            Picker("Mode", selection: $runner.parallel) {
+                Label("Parallel — all lanes at once", systemImage: "square.split.2x1").tag(true)
+                Label("Sequential — one lane at a time", systemImage: "square.stack").tag(false)
+            }
+        } label: {
+            Label(runner.parallel ? "Parallel" : "Sequential",
+                  systemImage: runner.parallel ? "square.split.2x1" : "square.stack")
         }
-        .pickerStyle(.segmented)
         .disabled(runner.isRunning)
         .help("Sequential unloads each open-weight model before the next lane runs — the memory-safe mode for iPhone.")
     }
@@ -129,30 +145,74 @@ private struct ArenaLaneView: View {
 
     private let bottomID = "lane-bottom"
 
+    private var tint: Color { DS.engineTint(badge: lane.spec.badge) }
+    private var holdsARecord: Bool { isBestTTFT || isBestTokPerSec }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
-            output
-            footer
+        Group {
+            if lane.isAvailable {
+                activeBody
+            } else {
+                unavailableBody
+            }
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .glassTile(radius: DS.Radius.card)
-        .opacity(lane.isAvailable ? 1 : 0.5)
+        .overlay {
+            if holdsARecord {
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                    .stroke(tint.opacity(0.5), lineWidth: 1.5)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: holdsARecord)
+    }
+
+    // MARK: Active lane — header / streaming hero / instrument footer
+
+    private var activeBody: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            output
+            instruments
+        }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                EngineBadge(text: lane.spec.badge)
-                Text(lane.spec.displayName)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1).truncationMode(.tail)
-                Spacer(minLength: 0)
+        HStack(spacing: 8) {
+            EngineBadge(text: lane.spec.badge)
+            Text(lane.spec.displayName)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: 8)
+            statusIndicator
+        }
+    }
+
+    @ViewBuilder private var statusIndicator: some View {
+        switch lane.run.phase {
+        case .loading:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini)
+                if lane.loadProgress > 0, lane.loadProgress < 1 {
+                    Text("\(Int(lane.loadProgress * 100))%")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
-            if let reason = lane.unavailabilityReason {
-                Text(reason).font(.caption2).foregroundStyle(.secondary)
+        case .streaming:
+            HStack(spacing: 6) {
+                PulsingDot(color: tint)
+                Text("live").font(DS.Typo.label).textCase(.uppercase).foregroundStyle(.secondary)
             }
+        case .done:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.green)
+        case .failed(let reason):
+            StatusChip(reason: reason)
+        case .idle:
+            EmptyView()
         }
     }
 
@@ -160,7 +220,7 @@ private struct ArenaLaneView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 Text(lane.run.output.isEmpty ? placeholder : lane.run.output)
-                    .font(.system(.caption, design: .monospaced))
+                    .font(DS.Typo.stream)
                     .foregroundStyle(lane.run.output.isEmpty ? .secondary : .primary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -175,53 +235,59 @@ private struct ArenaLaneView: View {
 
     private var placeholder: String {
         switch lane.run.phase {
-        case .loading:
-            return lane.loadProgress > 0 && lane.loadProgress < 1
-                ? "Loading… \(Int(lane.loadProgress * 100))%"
-                : "Loading…"
-        default:
-            return lane.isAvailable ? "Waiting for the flag." : "Out of the race on this machine."
+        case .loading: return "Loading weights…"
+        default: return "Waiting for the flag."
         }
     }
 
-    private var footer: some View {
-        HStack(spacing: 12) {
-            stat("TTFT",
-                 lane.run.ttftMs > 0 ? String(format: "%.0f ms", lane.run.ttftMs) : "—",
-                 highlighted: isBestTTFT)
-            stat("tok/s",
-                 lane.run.tokPerSec > 0
-                     ? (lane.spec.tokenCountIsEstimated ? "≈" : "") + String(format: "%.0f", lane.run.tokPerSec)
-                     : "—",
-                 highlighted: isBestTokPerSec)
+    private var instruments: some View {
+        HStack(alignment: .top, spacing: 18) {
+            InstrumentStat(
+                label: "TTFT",
+                value: lane.run.ttftMs > 0 ? String(format: "%.0f", lane.run.ttftMs) : "—",
+                unit: "ms",
+                highlighted: isBestTTFT)
+            InstrumentStat(
+                label: "Speed",
+                value: lane.run.tokPerSec > 0
+                    ? (lane.spec.tokenCountIsEstimated ? "≈" : "") + String(format: "%.0f", lane.run.tokPerSec)
+                    : "—",
+                unit: "tok/s",
+                highlighted: isBestTokPerSec)
             Spacer(minLength: 0)
-            trailingStatus
         }
     }
 
-    @ViewBuilder private var trailingStatus: some View {
-        switch lane.run.phase {
-        case .loading:
-            ProgressView().controlSize(.mini)
-        case .streaming:
-            Text("streaming").font(.caption2).foregroundStyle(.secondary)
-        case .failed(let reason):
-            StatusChip(reason: reason)
-        case .done, .idle:
-            EmptyView()
-        }
-    }
+    // MARK: Unavailable lane — dignified, explained, still on the grid
 
-    private func stat(_ label: String, _ value: String, highlighted: Bool) -> some View {
-        HStack(spacing: 4) {
-            if highlighted {
-                Image(systemName: "trophy.fill").font(.caption2).foregroundStyle(DS.accent)
+    private var unavailableBody: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                EngineBadge(text: lane.spec.badge)
+                Text(lane.spec.displayName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 0)
             }
-            Text(label).font(.caption2.weight(.semibold)).textCase(.uppercase).foregroundStyle(.secondary)
-            Text(value)
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(highlighted ? AnyShapeStyle(DS.accent) : AnyShapeStyle(.primary))
-                .contentTransition(.numericText())
+            Spacer()
+            VStack(spacing: 10) {
+                Image(systemName: lane.spec.badge == "AFM" ? "apple.logo" : "shippingbox")
+                    .font(.system(size: 30, weight: .light))
+                    .foregroundStyle(.tertiary)
+                Text("Sitting this one out")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                if let reason = lane.unavailabilityReason {
+                    Text(reason)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 8)
+            Spacer()
         }
     }
 }

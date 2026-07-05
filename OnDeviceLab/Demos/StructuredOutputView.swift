@@ -12,8 +12,7 @@ struct StructuredOutputView: View {
             VStack(spacing: DS.Space.section) {
                 engineChips
                 resultCard
-                historyStrip
-                footer
+                scoreboard
                 runButton
             }
             .padding(DS.Space.gutter)
@@ -42,9 +41,7 @@ struct StructuredOutputView: View {
 
     private var resultCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(eyebrow)
-                .font(.caption2.weight(.semibold)).textCase(.uppercase)
-                .foregroundStyle(.secondary)
+            Eyebrow(eyebrow)
             ScrollView {
                 resultBody.frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -69,7 +66,7 @@ struct StructuredOutputView: View {
         case .idle:
             Text("The charging receipt below goes to the selected engine; the reply is stripped, decoded and checked field by field.\n\n"
                  + PromptLibrary.chargingInvoice)
-                .font(.system(.caption, design: .monospaced))
+                .font(DS.Typo.mono)
                 .foregroundStyle(.secondary)
         case .loading(let progress):
             HStack(spacing: 8) {
@@ -79,7 +76,7 @@ struct StructuredOutputView: View {
             }
         case .working(let streamed):
             Text(streamed.isEmpty ? "Waiting for the first token…" : streamed)
-                .font(.system(.caption, design: .monospaced))
+                .font(DS.Typo.stream)
                 .foregroundStyle(streamed.isEmpty ? .secondary : .primary)
                 .textSelection(.enabled)
         case .finished(let result):
@@ -96,63 +93,93 @@ struct StructuredOutputView: View {
     }
 
     @ViewBuilder private func validationView(_ result: ValidationResult) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             if let fields = result.fields {
-                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: result.passed ? "checkmark.seal.fill" : "xmark.seal.fill")
+                        .font(.title3)
+                        .foregroundStyle(result.passed ? .green : .red)
+                    Text(result.passed ? "All six fields parsed" : "Schema incomplete")
+                        .font(.headline)
+                }
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
                     ForEach(fields.fieldPairs, id: \.name) { pair in
                         GridRow {
                             Image(systemName: pair.value != nil ? "checkmark.circle.fill" : "xmark.circle.fill")
                                 .font(.caption)
                                 .foregroundStyle(pair.value != nil ? .green : .red)
                             Text(pair.name)
-                                .font(.system(.caption, design: .monospaced))
+                                .font(DS.Typo.mono)
                                 .foregroundStyle(.secondary)
                             Text(pair.value ?? "missing")
-                                .font(.system(.caption, design: .monospaced).weight(.semibold))
+                                .font(DS.Typo.stream.weight(.semibold))
                                 .foregroundStyle(pair.value != nil ? .primary : .secondary)
                         }
                     }
                 }
                 if !result.missing.isEmpty {
-                    StatusChip(text: "missing: \(result.missing.joined(separator: ", "))", color: .red)
+                    StatusChip(text: "missing: \(result.missing.joined(separator: ", "))",
+                               color: .red, icon: "exclamationmark.triangle.fill")
                 }
             } else {
-                StatusChip(text: result.errorDescription ?? "JSON decode failed", color: .red)
-                Text("Raw output — exactly what the model sent back:")
-                    .font(.caption2).foregroundStyle(.secondary)
+                // Exhibit A: the verbatim broken output, deliberately framed.
+                StatusChip(text: result.errorDescription ?? "JSON decode failed",
+                           color: .red, icon: "xmark.octagon.fill")
+                Eyebrow("Exhibit A — verbatim model output")
                 Text(result.raw)
-                    .font(.system(.caption, design: .monospaced))
+                    .font(DS.Typo.mono)
                     .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Color.red.opacity(0.06),
+                                in: RoundedRectangle(cornerRadius: DS.Radius.chip, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: DS.Radius.chip, style: .continuous)
+                            .stroke(Color.red.opacity(0.18), lineWidth: 1)
+                    }
             }
         }
     }
 
-    // MARK: History + footer
+    // MARK: Scoreboard — one row per engine, dots as session history
 
-    private var historyStrip: some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private var scoreboard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Eyebrow("Scoreboard")
             ForEach(ExtractionRunner.EngineChoice.allCases) { choice in
-                HStack(spacing: 6) {
+                let results = runner.history[choice] ?? []
+                HStack(spacing: 10) {
                     Text(runner.title(for: choice))
-                        .font(.caption2).foregroundStyle(.secondary)
-                        .frame(width: 130, alignment: .leading)
-                    ForEach(Array((runner.history[choice] ?? []).enumerated()), id: \.offset) { _, passed in
-                        Circle()
-                            .fill(passed ? Color.green : Color.red)
-                            .frame(width: 8, height: 8)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 110, alignment: .leading)
+                    if results.isEmpty {
+                        Text("no runs yet")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        HStack(spacing: 5) {
+                            ForEach(Array(results.enumerated()), id: \.offset) { _, passed in
+                                Circle()
+                                    .fill(passed ? Color.green : Color.red)
+                                    .frame(width: 10, height: 10)
+                            }
+                        }
                     }
                     Spacer(minLength: 0)
+                    Text(results.isEmpty ? "—" : "\(results.filter { $0 }.count)/\(results.count)")
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
             }
+            Text("AFM's failure mode is refusal, not malformed JSON.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 2)
         }
-        .padding(.horizontal, 6)
-    }
-
-    private var footer: some View {
-        Text("AFM's failure mode is refusal, not malformed JSON.")
-            .font(.caption2).foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 6)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassTile(radius: DS.Radius.tile)
     }
 
     private var runButton: some View {

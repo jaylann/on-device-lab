@@ -127,3 +127,114 @@ extension View {
         modifier(GlassTile(height: height, tint: tint, capsule: true))
     }
 }
+
+// MARK: - Demo-overhaul tokens (additive)
+
+extension DS {
+    /// One hue per runtime family so a lane's identity reads from the back row:
+    /// Apple's system model is indigo, everything open-weight via MLX is teal.
+    static func engineTint(badge: String) -> Color {
+        badge == "AFM" ? .indigo : .teal
+    }
+
+    enum Typo {
+        /// Streaming model output — the hero text. Sized for a projector, so a
+        /// notch above the platform default on macOS.
+        static var stream: Font {
+            #if os(macOS)
+            .system(size: 15, design: .monospaced)
+            #else
+            .system(.callout, design: .monospaced)
+            #endif
+        }
+
+        /// Small monospaced metadata: raw model output, trace details.
+        static var mono: Font {
+            #if os(macOS)
+            .system(size: 12, design: .monospaced)
+            #else
+            .system(.caption, design: .monospaced)
+            #endif
+        }
+
+        /// Big instrument readout (TTFT, tok/s) — the numbers ARE the demo.
+        static let statValue = Font.system(size: 26, weight: .semibold, design: .monospaced)
+        /// Mid-size readout for table rows.
+        static let statValueSmall = Font.system(size: 17, weight: .semibold, design: .monospaced)
+        /// Unit trailing a readout ("ms", "tok/s").
+        static let statUnit = Font.system(size: 12, weight: .semibold, design: .monospaced)
+        /// Uppercase eyebrow / stat label.
+        static let label = Font.caption2.weight(.semibold)
+    }
+}
+
+/// Uppercase eyebrow that opens every card — one voice for section labels.
+struct Eyebrow: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(DS.Typo.label)
+            .kerning(0.8)
+            .textCase(.uppercase)
+            .foregroundStyle(.secondary)
+    }
+}
+
+/// Instrument-style readout: uppercase label above a large monospaced value.
+/// The value keeps its box while it counts up (`numericText`), so live races
+/// read like a dashboard, not a reflowing paragraph.
+struct InstrumentStat: View {
+    let label: String
+    let value: String
+    var unit: String?
+    var highlighted = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                if highlighted {
+                    Image(systemName: "laurel.leading")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(DS.accent)
+                }
+                Text(label)
+                    .font(DS.Typo.label)
+                    .kerning(0.8)
+                    .textCase(.uppercase)
+                    .foregroundStyle(.secondary)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value)
+                    .font(DS.Typo.statValue)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .foregroundStyle(highlighted ? AnyShapeStyle(DS.accent) : AnyShapeStyle(.primary))
+                    .contentTransition(.numericText())
+                if let unit {
+                    Text(unit)
+                        .font(DS.Typo.statUnit)
+                        .fixedSize()
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+}
+
+/// Small breathing dot — the "this lane is live" indicator.
+struct PulsingDot: View {
+    var color: Color = DS.accent
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 7, height: 7)
+            .phaseAnimator([0.35, 1.0]) { view, phase in
+                view.opacity(phase)
+            } animation: { _ in
+                .easeInOut(duration: 0.7)
+            }
+    }
+}

@@ -42,13 +42,18 @@ extension StreamRun.FailReason {
 }
 
 /// Small colored capsule for failure states (and any other status callout).
+/// `prominent` bumps size and weight for the money-shot chips (context limit).
 struct StatusChip: View {
     let text: String
     let color: Color
+    var icon: String?
+    var prominent = false
 
-    init(text: String, color: Color) {
+    init(text: String, color: Color, icon: String? = nil, prominent: Bool = false) {
         self.text = text
         self.color = color
+        self.icon = icon
+        self.prominent = prominent
     }
 
     init(reason: StreamRun.FailReason) {
@@ -56,27 +61,35 @@ struct StatusChip: View {
     }
 
     var body: some View {
-        Text(text)
-            .font(.caption2.weight(.semibold))
-            .lineLimit(2)
-            .foregroundStyle(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.14), in: Capsule(style: .continuous))
+        HStack(spacing: 5) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(prominent ? .caption.weight(.bold) : .caption2.weight(.semibold))
+            }
+            Text(text)
+                .font(prominent ? .caption.weight(.bold) : .caption2.weight(.semibold))
+                .lineLimit(2)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, prominent ? 12 : 10)
+        .padding(.vertical, prominent ? 6 : 4)
+        .background(color.opacity(prominent ? 0.16 : 0.14), in: Capsule(style: .continuous))
     }
 }
 
-/// Engine badge ("AFM" / "MLX") rendered the same way in every tab.
+/// Engine badge ("AFM" / "MLX") rendered the same way in every tab, in that
+/// engine family's identity color.
 struct EngineBadge: View {
     let text: String
 
     var body: some View {
         Text(text)
             .font(.caption2.weight(.bold))
-            .foregroundStyle(DS.accent)
+            .kerning(0.5)
+            .foregroundStyle(DS.engineTint(badge: text))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(DS.accent.opacity(0.12), in: Capsule(style: .continuous))
+            .background(DS.engineTint(badge: text).opacity(0.12), in: Capsule(style: .continuous))
     }
 }
 
@@ -90,10 +103,10 @@ struct EngineChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                 .padding(.horizontal, 14)
-                .glassPill(height: 34, tint: selected ? DS.accent : nil)
+                .glassPill(height: 36, tint: selected ? DS.accent : nil)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

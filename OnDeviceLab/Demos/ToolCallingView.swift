@@ -41,18 +41,16 @@ struct ToolCallingView: View {
 
     private var traceCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(runner.isRunning ? "Running" : (runner.trace.isEmpty ? "Ready" : "Trace"))
-                .font(.caption2.weight(.semibold)).textCase(.uppercase)
-                .foregroundStyle(.secondary)
+            Eyebrow(runner.isRunning ? "Running" : (runner.trace.isEmpty ? "Ready" : "Trace"))
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 0) {
                         if runner.trace.isEmpty {
                             Text("Press run: the timeline shows every hop — model turn, tool call, tool result, final answer. Parse failures land here too, on purpose.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
-                        ForEach(runner.trace) { step in
-                            traceRow(step)
+                        ForEach(Array(runner.trace.enumerated()), id: \.element.id) { index, step in
+                            traceRow(step, isLast: index == runner.trace.count - 1)
                         }
                         Color.clear.frame(height: 1).id("trace-bottom")
                     }
@@ -68,34 +66,64 @@ struct ToolCallingView: View {
         .glassTile(radius: DS.Radius.card)
     }
 
-    private func traceRow(_ step: ToolTraceStep) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon(for: step.kind))
-                .font(.caption)
-                .foregroundStyle(step.ok ? AnyShapeStyle(DS.accent) : AnyShapeStyle(.red))
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    Text(step.title).font(.caption.weight(.semibold))
-                    StatusChip(text: step.ok ? "ok" : "fail", color: step.ok ? .green : .red)
+    /// One hop, sequence-diagram style: tinted node, connector down to the
+    /// next hop, payload in monospace.
+    private func traceRow(_ step: ToolTraceStep, isLast: Bool) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 3) {
+                ZStack {
+                    Circle()
+                        .fill(tint(for: step).opacity(0.14))
+                        .frame(width: 28, height: 28)
+                    Image(systemName: icon(for: step.kind))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(tint(for: step))
                 }
+                if !isLast {
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(.quaternary)
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(step.title).font(.footnote.weight(.semibold))
+                    if !step.ok {
+                        StatusChip(text: "fail", color: .red, icon: "xmark")
+                    }
+                }
+                .frame(minHeight: 28)
                 if !step.detail.isEmpty {
                     Text(step.detail)
-                        .font(.system(.caption2, design: .monospaced))
+                        .font(DS.Typo.mono)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
             }
+            .padding(.bottom, isLast ? 0 : 14)
+            Spacer(minLength: 0)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func tint(for step: ToolTraceStep) -> Color {
+        if !step.ok { return .red }
+        switch step.kind {
+        case .model: return DS.accent
+        case .toolCall, .toolResult: return .orange
+        case .answer: return .green
+        case .failure: return .red
         }
     }
 
     private func icon(for kind: ToolTraceStep.Kind) -> String {
         switch kind {
         case .model: return "brain"
-        case .toolCall: return "wrench.and.screwdriver"
+        case .toolCall: return "wrench.and.screwdriver.fill"
         case .toolResult: return "arrow.turn.down.right"
-        case .answer: return "checkmark.bubble"
-        case .failure: return "exclamationmark.triangle"
+        case .answer: return "checkmark.bubble.fill"
+        case .failure: return "exclamationmark.triangle.fill"
         }
     }
 
