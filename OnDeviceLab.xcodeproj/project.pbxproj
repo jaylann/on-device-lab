@@ -176,6 +176,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					02F0135689B70416A0E449CB = {
+						DevelopmentTeam = LAC5ZD9J6Z;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -252,6 +253,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = LAC5ZD9J6Z;
 				INFOPLIST_KEY_CFBundleDisplayName = "On-Device Lab";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -344,6 +346,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = LAC5ZD9J6Z;
 				INFOPLIST_KEY_CFBundleDisplayName = "On-Device Lab";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -440,6 +443,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = LAC5ZD9J6Z;
 				INFOPLIST_KEY_CFBundleDisplayName = "On-Device Lab";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

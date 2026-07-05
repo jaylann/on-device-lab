@@ -32,29 +32,37 @@ struct ContextStressView: View {
     }
 
     private var sizeChips: some View {
-        HStack(spacing: DS.Space.row) {
-            ForEach(presets, id: \.self) { tokens in
-                EngineChip(
-                    title: "~\(tokens / 1_000)k tok",
-                    selected: selectedTokens == tokens,
-                    enabled: !runner.isRunning
-                ) { selectedTokens = tokens }
+        // Horizontal scroll: five chips exceed a compact iPhone width, and an
+        // overflowing HStack would shove the whole layout off-screen.
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Space.row) {
+                ForEach(presets, id: \.self) { tokens in
+                    EngineChip(
+                        title: "~\(tokens / 1_000)k tok",
+                        selected: selectedTokens == tokens,
+                        enabled: !runner.isRunning
+                    ) { selectedTokens = tokens }
+                }
             }
-            Spacer(minLength: 0)
         }
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var engineChips: some View {
-        HStack(spacing: DS.Space.row) {
-            ForEach(runner.engineInfos, id: \.id) { info in
-                EngineChip(
-                    title: info.shortName,
-                    selected: runner.selectedEngineIDs.contains(info.id),
-                    enabled: !runner.isRunning
-                ) { runner.toggle(info.id) }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Space.row) {
+                ForEach(runner.engineInfos, id: \.id) { info in
+                    EngineChip(
+                        title: info.shortName,
+                        selected: runner.selectedEngineIDs.contains(info.id),
+                        enabled: !runner.isRunning
+                    ) { runner.toggle(info.id) }
+                }
             }
-            Spacer(minLength: 0)
         }
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Results (completed rows stay listed so TTFT growth is visible)
@@ -115,7 +123,7 @@ struct ContextStressView: View {
                 .font(.footnote.weight(.semibold))
                 .lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 0)
-            Text("~\(row.approxTokens.formatted())")
+            Text("~\(row.approxTokens / 1_000)k")
                 .font(.footnote.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 90, alignment: .trailing)
@@ -148,7 +156,8 @@ struct ContextStressView: View {
         case .failed(let reason):
             if case .contextOverflow = reason {
                 // The money shot of this tab: the hard wall, unmissable.
-                StatusChip(text: "\(row.contextWindow.formatted())-token hard limit",
+                // Fixed en-US grouping: the slide says "4,096", not the locale's "4.096".
+                StatusChip(text: "\(row.contextWindow.formatted(.number.locale(Locale(identifier: "en_US"))))-token hard limit",
                            color: .red, icon: "nosign", prominent: true)
             } else {
                 StatusChip(reason: reason)
@@ -168,7 +177,7 @@ struct ContextStressView: View {
             runner.run(approxTokens: selectedTokens,
                        repeats: max(1, selectedTokens / Self.tokensPerRepeat))
         } label: {
-            Text(runner.isRunning ? "Running…" : "Send ~\(selectedTokens.formatted()) tokens")
+            Text(runner.isRunning ? "Running…" : "Send ~\(selectedTokens / 1_000)k tokens")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(runButtonEnabled ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
                 .frame(maxWidth: .infinity)

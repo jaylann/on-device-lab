@@ -25,16 +25,20 @@ struct StructuredOutputView: View {
     }
 
     private var engineChips: some View {
-        HStack(spacing: DS.Space.row) {
-            ForEach(ExtractionRunner.EngineChoice.allCases) { choice in
-                EngineChip(
-                    title: runner.title(for: choice),
-                    selected: runner.selection == choice,
-                    enabled: !runner.isRunning
-                ) { runner.selection = choice }
+        // Horizontal scroll so the chip row can never shove a compact layout off-screen.
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Space.row) {
+                ForEach(ExtractionRunner.EngineChoice.allCases) { choice in
+                    EngineChip(
+                        title: runner.title(for: choice),
+                        selected: runner.selection == choice,
+                        enabled: !runner.isRunning
+                    ) { runner.selection = choice }
+                }
             }
-            Spacer(minLength: 0)
         }
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Result

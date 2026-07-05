@@ -43,6 +43,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: LAC5ZD9J6Z
         # macOS SwiftUI apps are unsandboxed by default — HF model download + local file reads work with no entitlement.
       configs:
         Solution:
