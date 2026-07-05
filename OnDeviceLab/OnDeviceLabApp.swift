@@ -4,7 +4,7 @@ import SwiftUI
 struct OnDeviceLabApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LabRootView()
                 #if os(macOS)
                 .frame(minWidth: 720, minHeight: 560)
                 #endif

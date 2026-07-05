@@ -22,11 +22,25 @@ enum ModelCatalog {
         id: "mlx-community/Qwen3-4B-4bit",
         displayName: "Qwen3 4B · 4-bit",
         note: "Stress model (M3) · ~2.3 GB · feel the reasoning class")
+    static let smolLM3 = LabModel(
+        id: "mlx-community/SmolLM3-3B-4bit",
+        displayName: "SmolLM3 3B · 4-bit",
+        note: "Arena class · ~1.7 GB · 64k ctx · /think //no_think dual mode")
+    static let smolLM2 = LabModel(
+        // No official mlx-community 4-bit exists; this community quant is verified
+        // working (mlx-lm 0.31.3, sane JSON extraction, ~1.2 GB peak).
+        id: "Irfanuruchi/SmolLM2-1.7B-Instruct-MLX-4bit",
+        displayName: "SmolLM2 1.7B · 4-bit",
+        note: "Arena class · ~1 GB · 8k ctx · llama-arch")
 
-    static let all: [LabModel] = [qwen06B, qwen17B, qwen4B]
+    static let all: [LabModel] = [qwen06B, qwen17B, qwen4B, smolLM3, smolLM2]
 
     /// The first two are what slide 21 reports; the 4B is the M3 stress model.
     static let benchmarkSet: [LabModel] = [qwen06B, qwen17B]
+
+    /// AFM's sparring partners in the arena — same ~size class as the on-device
+    /// 3B foundation model, so the race is fair.
+    static let arenaSet: [LabModel] = [qwen17B, smolLM3]
 
     /// Local model share (slide 26): if `~/Documents/models/<repo-leaf>` exists, load it with
     /// no network. Otherwise fall back to a Hugging Face download. `fetch-models.sh` stages this.

@@ -12,6 +12,10 @@ MODELS=(
   "mlx-community/Qwen3-0.6B-4bit"
   "mlx-community/Qwen3-1.7B-4bit"
   "mlx-community/Qwen3-4B-4bit"
+  "mlx-community/SmolLM3-3B-4bit"
+  # No official mlx-community 4-bit exists for SmolLM2; this community quant is
+  # verified working (mlx-lm 0.31.3, JSON extraction sane, ~1.2 GB peak).
+  "Irfanuruchi/SmolLM2-1.7B-Instruct-MLX-4bit"
 )
 PY="${PYTHON:-python3}"
 
