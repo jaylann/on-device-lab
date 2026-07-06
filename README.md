@@ -60,17 +60,21 @@ Fill them, hit **Run suite**, shout your numbers — we collect them across M1 �
 JSON matches the Python harness schema in `bench/`.)
 
 ### M3 · Extract it — round 2 (structured output)
-`OnDeviceLab/Demos/TicketExtraction.swift`. Pull six fields out of a messy charging receipt.
-- **Open-weight** — done for you: the Extract tab runs a **grammar lock**
-  (mlx-swift-structured / XGrammar constrains decoding to the six-field schema), so malformed
-  JSON is impossible on this side too. *Same guarantee as Apple's, off the shelf.*
-- **Apple FM** — `TODO 3b` in `AFMExtractor.extractInvoice`: one `session.respond(to:,
-  generating: GenerableInvoice.self)` call. *Generate straight into a type — bad JSON is impossible.*
+Pull six fields out of a messy charging receipt — the same schema, expressed two ways.
+- **Open-weight** — `TODO 3a` in `Engines/GrammarLock.swift`: finish the six-field `JSONSchema`
+  that XGrammar locks decoding to. *The schema is a value you hand the sampler.* Until then the
+  **Extract** tab reports five missing fields on every open-weight run.
+- **Apple FM** — `TODO 3b` in `TicketExtraction.swift`, `AFMExtractor.extractInvoice`: one
+  `session.respond(to:, generating: GenerableInvoice.self)` call. *The schema is a type — the
+  runtime constrained-decodes straight into it.*
+
+Either way, malformed JSON is impossible — that's Round 2's point.
 
 ### M4 · Tool it — round 3 (tool calling)
 `OnDeviceLab/Demos/CarTools.swift`. Answer a driver's question by calling car tools.
-- **Open-weight** — done for you: a grammar-locked JSON loop (the tool name can only be one of
-  the registered ones), every hop rendered in the trace. *Constrained calls, hand-run loop.*
+- **Open-weight** — `TODO 4a` in `CarToolbox.dispatch(name:arguments:)`: the grammar lock
+  guarantees a *valid* call, but the loop is yours — route the wire names to the toolbox.
+  Until then every tool call on the **Tools** tab dead-ends as "unknown tool".
 - **Apple FM** — `TODO 4b` in `WeatherTool.call(arguments:)`: implement one `Tool` struct
   (the other two are done for reference). *Typed structs; the runtime runs the call loop.*
 
@@ -130,9 +134,9 @@ block Hugging Face): grab pre-staged weights from the on-site local share.
   model loading, the tokenizer, and streaming generation.
 - `ModelCatalog` loads a `ModelContainer` (HF id or a local directory).
 - `LLMEngine` streams a chat reply (`ChatSession.streamResponse`).
-- The `#if SOLUTION` teaching TODOs: M2 in `Benchmark.swift` (measure), M3b in
-  `TicketExtraction.swift` (AFM extraction), M4b in `CarTools.swift` (AFM weather tool).
-  The open-weight extract/tools paths are grammar-locked and fully wired.
+- The `#if SOLUTION` teaching TODOs, one open-weight + one Apple FM per round:
+  M2 in `Benchmark.swift` (measure) · M3a in `GrammarLock.swift` / M3b in
+  `TicketExtraction.swift` (extract) · M4a and M4b in `CarTools.swift` (tools).
 
 > **Presenting?** Run the **`OnDeviceLab (Solution)`** scheme so the Extract / Tools / Arena tabs
 > are fully wired for the live demos. Participants use the default scheme (the TODO stubs).

@@ -51,18 +51,26 @@ enum CarToolbox {
 
     /// Dispatch by wire name. Returns nil for an unknown tool so the caller
     /// can surface the miss in the trace instead of hiding it.
+    ///
+    /// ── MILESTONE 4a · TOOL IT (open-weight path) ────────────────────────────
+    /// The grammar lock guarantees a *valid* call — but nobody runs it for you.
+    /// The open-weight loop is yours, and THIS is its routing table (vs Apple's
+    /// Tool structs, where the runtime dispatches — that's 4b). Route the wire
+    /// names "charging_stations", "vehicle_range" and "weather" to the toolbox
+    /// functions above (`near`/`at` arrive in `arguments`; default to "Stuttgart").
+    ///
+    /// Until you do, every tool call on the Tools tab dead-ends as "unknown
+    /// tool — not in the toolbox". Stuck? Build the "OnDeviceLab (Solution)"
+    /// scheme (reference in Solutions/Solutions.swift).
+    /// ─────────────────────────────────────────────────────────────────────────
+    #if !SOLUTION
     static func dispatch(name: String, arguments: [String: Any]) -> String? {
-        switch name {
-        case "charging_stations", "chargingStations":
-            return chargingStationsText(near: arguments["near"] as? String ?? "Stuttgart")
-        case "vehicle_range", "vehicleRange":
-            return vehicleRangeText()
-        case "weather":
-            return weather(at: arguments["at"] as? String ?? "Stuttgart")
-        default:
-            return nil
-        }
+        // TODO 4a — switch on `name`, call the matching CarToolbox function,
+        //   return its text. Keep nil for anything you don't recognize.
+        _ = arguments
+        return nil
     }
+    #endif
 }
 
 // MARK: - Trace timeline

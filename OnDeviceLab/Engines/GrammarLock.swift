@@ -12,20 +12,29 @@ import JSONSchema
 
 enum GrammarLock {
 
-    /// Charging-receipt schema — the six fields the Extract tab pulls. All required:
-    /// the demo receipt carries every field, so a full, valid object is guaranteed.
+    /// Charging-receipt schema — the six fields the Extract tab pulls.
+    ///
+    /// ── MILESTONE 3a · EXTRACT IT (open-weight path) ─────────────────────────
+    /// The open-weight philosophy: the schema is a *value* you hand to XGrammar
+    /// (vs Apple's @Generable, where it's a *type* — that's 3b). `provider` is
+    /// done as the example. Your job: add the other five fields — location
+    /// (string), kwh / duration_min / total_eur (numbers), session_id (string) —
+    /// and mark all six required, so the grammar guarantees a complete object.
+    ///
+    /// Until you do, every open-weight run on the Extract tab comes back with
+    /// five missing fields — that red chip is your progress bar. Stuck? Build
+    /// the "OnDeviceLab (Solution)" scheme (reference in Solutions/Solutions.swift).
+    /// ─────────────────────────────────────────────────────────────────────────
+    #if !SOLUTION
     static let invoiceSchema = JSONSchema.object(
         description: "Fields extracted from an EV charging receipt",
         properties: [
             "provider": .string(),
-            "location": .string(),
-            "kwh": .number(),
-            "duration_min": .number(),
-            "total_eur": .number(),
-            "session_id": .string(),
+            // TODO 3a — the other five fields, then require all six.
         ],
-        required: ["provider", "location", "kwh", "duration_min", "total_eur", "session_id"]
+        required: ["provider"]
     )
+    #endif
 
     /// The four tool names the model may choose. `final_answer` ends the loop.
     static let toolNames = ["charging_stations", "vehicle_range", "weather", "final_answer"]

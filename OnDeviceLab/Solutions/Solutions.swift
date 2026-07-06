@@ -1,5 +1,5 @@
 //  Solutions.swift — reference implementations for the code-along milestones:
-//  M2 (measure), M3b (AFM extraction), M4b (AFM weather tool).
+//  M2 (measure), M3a/M3b (extraction, open + AFM), M4a/M4b (tools, open + AFM).
 //
 //  Compiled ONLY by the "OnDeviceLab (Solution)" scheme (the SOLUTION flag). In
 //  the default scheme every symbol here is #if'd out, and the participant-facing
@@ -10,6 +10,7 @@
 
 #if SOLUTION
 import Foundation
+import JSONSchema
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -20,6 +21,42 @@ extension BenchmarkRunner {
     func tally(firstTokenTime: inout Date?, tokenCount: inout Int) {
         if firstTokenTime == nil { firstTokenTime = Date() }   // TTFT: stamp the first token
         tokenCount += 1                                        // throughput: count every token
+    }
+}
+
+// MARK: - M3a · Extract it, open-weight path (round 2 — structured output)
+
+extension GrammarLock {
+    /// All six fields required: the demo receipts carry every field, so the
+    /// grammar guarantees a full, valid object.
+    static let invoiceSchema = JSONSchema.object(
+        description: "Fields extracted from an EV charging receipt",
+        properties: [
+            "provider": .string(),
+            "location": .string(),
+            "kwh": .number(),
+            "duration_min": .number(),
+            "total_eur": .number(),
+            "session_id": .string(),
+        ],
+        required: ["provider", "location", "kwh", "duration_min", "total_eur", "session_id"]
+    )
+}
+
+// MARK: - M4a · Tool it, open-weight path (round 3 — tool calling)
+
+extension CarToolbox {
+    static func dispatch(name: String, arguments: [String: Any]) -> String? {
+        switch name {
+        case "charging_stations", "chargingStations":
+            return chargingStationsText(near: arguments["near"] as? String ?? "Stuttgart")
+        case "vehicle_range", "vehicleRange":
+            return vehicleRangeText()
+        case "weather":
+            return weather(at: arguments["at"] as? String ?? "Stuttgart")
+        default:
+            return nil
+        }
     }
 }
 
