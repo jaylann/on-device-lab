@@ -22,6 +22,7 @@ func percentile(_ values: [Double], _ q: Double) -> Double {
 struct RunResult {
     var ttft: Double
     var tps: Double
+    var cps: Double
     var chars: Int
 }
 
@@ -72,8 +73,9 @@ struct AFMBench {
                 let decode = max(end.timeIntervalSince(first), 1e-6)
                 let estTokens = Double(finalText.count) / 4.0
                 let tps = estTokens / decode
-                results.append(RunResult(ttft: ttft, tps: tps, chars: finalText.count))
-                print(String(format: "    run %d/%d: TTFT %6.0f ms · ≈%5.1f tok/s · %d chars", i + 1, runs, ttft * 1000, tps, finalText.count))
+                let cps = Double(finalText.count) / decode
+                results.append(RunResult(ttft: ttft, tps: tps, cps: cps, chars: finalText.count))
+                print(String(format: "    run %d/%d: TTFT %6.0f ms · ≈%5.1f tok/s · %5.0f char/s · %d chars", i + 1, runs, ttft * 1000, tps, cps, finalText.count))
                 if i == 0 { print("    --- first output ---\n\(finalText)\n    ---") }
                 try? await Task.sleep(nanoseconds: 500_000_000)
             } catch {
@@ -84,6 +86,7 @@ struct AFMBench {
         guard !results.isEmpty else { print("no successful runs"); exit(1) }
         let ttfts = results.map(\.ttft)
         let tpss = results.map(\.tps)
+        let cpss = results.map(\.cps)
         let summary: [String: Any] = [
             "kind": "on-device",
             "device": "Apple M2 Pro · macOS 26.5.1 · Apple Foundation Models (gen 2, ~3B, 2-bit QAT)",
@@ -96,6 +99,8 @@ struct AFMBench {
                 "ttft_p99_s": (percentile(ttfts, 0.99) * 10000).rounded() / 10000,
                 "decode_tps_p50": (percentile(tpss, 0.5) * 10).rounded() / 10,
                 "decode_tps_p99": (percentile(tpss, 0.99) * 10).rounded() / 10,
+                "decode_cps_p50": (percentile(cpss, 0.5) * 10).rounded() / 10,
+                "decode_cps_p99": (percentile(cpss, 0.99) * 10).rounded() / 10,
                 "gen_chars_median": Int(percentile(results.map { Double($0.chars) }, 0.5)),
                 "tokens_estimated": true,
             ]],

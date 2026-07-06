@@ -77,8 +77,10 @@ def mac_device_label() -> str:
 class RunStats:
     ttft_s: list[float] = field(default_factory=list)
     decode_tps: list[float] = field(default_factory=list)
+    decode_cps: list[float] = field(default_factory=list)  # chars/sec — tokenizer-neutral
     prompt_tokens: int = 0
     gen_tokens: int = 0
+    gen_chars: int = 0
     peak_mem_gb: float = 0.0
 
     def summary(self) -> dict:
@@ -93,8 +95,12 @@ class RunStats:
             "ttft_p99_s": round(p(self.ttft_s, 0.99), 4) if self.ttft_s else None,
             "decode_tps_p50": round(statistics.median(self.decode_tps), 1) if self.decode_tps else None,
             "decode_tps_p99": round(p(self.decode_tps, 0.99), 1) if self.decode_tps else None,
+            "decode_cps_p50": round(statistics.median(self.decode_cps), 1) if self.decode_cps else None,
+            "decode_cps_p99": round(p(self.decode_cps, 0.99), 1) if self.decode_cps else None,
             "prompt_tokens": self.prompt_tokens,
             "gen_tokens": self.gen_tokens,
+            "gen_chars": self.gen_chars,
+            "chars_per_token": round(self.gen_chars / self.gen_tokens, 2) if self.gen_tokens else None,
             "peak_mem_gb": round(self.peak_mem_gb, 2),
             "runs": len(self.ttft_s),
         }
@@ -145,12 +151,13 @@ def _reset_peak_mem() -> None:
         pass
 
 
-def one_run(model, tokenizer, prompt: str, max_tokens: int, stream_generate) -> tuple[float, float, int, int, float]:
-    """Return (ttft_s, decode_tps, prompt_tokens, gen_tokens, peak_mem_gb) for a single generation."""
+def one_run(model, tokenizer, prompt: str, max_tokens: int, stream_generate) -> tuple[float, float, float, int, int, int, float]:
+    """Return (ttft_s, decode_tps, decode_cps, prompt_tokens, gen_tokens, gen_chars, peak_mem_gb)."""
     _reset_peak_mem()
     start = time.perf_counter()
     first_t = None
     gen_tokens = 0
+    gen_chars = 0
     prompt_tokens = 0
     peak_mem_gb = 0.0
     last_resp = None
@@ -158,6 +165,7 @@ def one_run(model, tokenizer, prompt: str, max_tokens: int, stream_generate) -> 
         if first_t is None:
             first_t = time.perf_counter()
         gen_tokens += 1
+        gen_chars += len(getattr(resp, "text", "") or "")
         last_resp = resp
     end = time.perf_counter()
     ttft = (first_t - start) if first_t else (end - start)
@@ -168,7 +176,8 @@ def one_run(model, tokenizer, prompt: str, max_tokens: int, stream_generate) -> 
         gen_tokens = getattr(last_resp, "generation_tokens", gen_tokens) or gen_tokens
     peak_mem_gb = _peak_mem_gb()
     decode_tps = gen_tokens / decode_time if decode_time > 0 else 0.0
-    return ttft, decode_tps, prompt_tokens, gen_tokens, peak_mem_gb
+    decode_cps = gen_chars / decode_time if decode_time > 0 else 0.0
+    return ttft, decode_tps, decode_cps, prompt_tokens, gen_tokens, gen_chars, peak_mem_gb
 
 
 def bench_model(model_id: str, prompt_raw: str, runs: int, warmup: int, max_tokens: int) -> dict:
@@ -184,13 +193,15 @@ def bench_model(model_id: str, prompt_raw: str, runs: int, warmup: int, max_toke
 
     stats = RunStats()
     for i in range(runs):
-        ttft, tps, ptok, gtok, mem = one_run(model, tokenizer, prompt, max_tokens, stream_generate)
+        ttft, tps, cps, ptok, gtok, gchars, mem = one_run(model, tokenizer, prompt, max_tokens, stream_generate)
         stats.ttft_s.append(ttft)
         stats.decode_tps.append(tps)
+        stats.decode_cps.append(cps)
         stats.prompt_tokens = ptok or stats.prompt_tokens
         stats.gen_tokens = gtok or stats.gen_tokens
+        stats.gen_chars = gchars or stats.gen_chars
         stats.peak_mem_gb = max(stats.peak_mem_gb, mem)
-        print(f"    run {i+1}/{runs}: TTFT {ttft*1000:6.0f} ms · {tps:5.1f} tok/s", flush=True)
+        print(f"    run {i+1}/{runs}: TTFT {ttft*1000:6.0f} ms · {tps:5.1f} tok/s · {cps:5.0f} char/s", flush=True)
 
     out = {"model": model_id, "load_s": round(load_s, 2), **stats.summary()}
     return out

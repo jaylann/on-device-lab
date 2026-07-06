@@ -71,15 +71,63 @@ enum PromptLibrary {
     Session ID: ENBW-DE-0702-113058   Thank you for charging.
     """ + invoiceInstruction
 
-    /// Extract preset: OCR-grade mess — reordered lines, noise, broken casing.
-    /// Some engines will drop a field here; a red dot on stage is the demo.
+    /// Extract preset: the stress test — ~2k tokens of OCR-grade mess. The six
+    /// real fields are scattered through marketing filler, terms boilerplate and
+    /// (the actual trap) a "recent sessions" history full of lookalike values.
+    /// Long enough to bury the needle, still inside AFM's 4,096-token window so
+    /// it tests extraction, not context overflow. Wrong values or dropped fields
+    /// on stage ARE the demo.
     static let chargingInvoiceScan = """
-    tOTAL 58 . 41 EUR incl.19%VAT
-    fastned deutschland gmbh & co. kg -- CHARGlNG RECElPT
-    sess. id FASTNED-DE-1119-002764
-    energy de1ivered 61.5kWh | charging time 44 . 8min
+    fastned deutschland gmbh & co. kg -- CHARGlNG RECElPT -- page 1/3
+    customer copy *** retain for your records *** doc-scan quality: LOW
+
+    Thank you for choosing Fastned! Did you know you can save up to 30% with
+    Fastned Gold Membership? Ask in the app. Rate your charging experience
+    today and win one of 50 charging credits worth 25.00 EUR each. Terms apply.
+
     >>> loc: Fastned Kamener Kreuz Nord, A1/A2, 59174 Kamen <<<
-    started 2026-06-19T21:03:12+02:00 *** thank you ***
+    station no. DE*FSN*E110119 | CCS-2 | max 300 kW | bays: 8 (2 accessible)
+    operator hotline +49 30 770 193 39 (24/7) | support@fastned.de
+
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    YOUR RECENT SESSIONS (for reference only, already billed):
+    2026-06-02  Fastned Limburg Ost      sess. FASTNED-DE-0602-001981   38.2 kWh   27.1 min   31.55 EUR
+    2026-06-07  Fastned Hilden Sued      sess. FASTNED-DE-0607-004410   52.0 kWh   39.4 min   44.20 EUR
+    2026-06-13  Fastned Brohltal West    sess. FASTNED-DE-0613-007733   19.8 kWh   14.9 min   16.83 EUR
+    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    ALLGEMEINE HINWEISE / GENERAL NOTES (excerpt, machine-translated):
+    The displayed charging power depends on vehicle, battery temperature and
+    state of charge. Billing is per kWh delivered at the connector. Parking
+    fees may apply after 45 minutes of idle time (blocking fee 0.35 EUR/min,
+    not charged on this receipt). Prices include statutory VAT. Receipts are
+    also available in the Fastned app under Account > History > Receipts.
+    For reimbursement questions contact your fleet manager. Fastned assumes
+    no liability for vehicle-side charging interruptions. Complaints must be
+    submitted within 8 weeks of the charging date. This document was produced
+    automatically and is valid without signature.
+
+    ******************* CURRENT SESSION *******************
+    started 2026-06-19T21:03:12+02:00 | connector CCS right | auth: app
+    energy de1ivered 61.5kWh | charging time 44 . 8min
+    tariff 0.89 EUR/kWh (Standard, no membership discount applied)
+    sess. id FASTNED-DE-1119-002764
+    tOTAL 58 . 41 EUR incl.19%VAT (net 49.08 EUR, VAT 9.33 EUR)
+    payment: visa ****4412, authorized 21:48:07, code 00 (approved)
+    *** thank you & safe travels ***
+    ********************************************************
+
+    Fastned Deutschland GmbH & Co. KG, Reichsstr. 15, 14052 Berlin
+    USt-IdNr. DE815341741 | Amtsgericht Charlottenburg HRA 55923 B
+    Managing directors: M. Langezaal, V. van Dijk. Regulated under EichVO.
+    Calibration law (Eichrecht) transparency record: SAFE-XDA-119-P44 —
+    verify at transparenz.software with public key 8842-AA31-0D77-91FC.
+
+    Download the Fastned app for live availability, plug & charge setup and
+    kWh price overviews. Follow us @fastnedcharging. Unsubscribe from paper
+    receipts in the app: Account > Preferences > Go paperless. Fastned is
+    carbon neutral: all electricity is sourced 100% from sun and wind. This
+    page intentionally contains no further billing information. -- page 3/3
     """ + invoiceInstruction
 
     /// Context-window race: a synthetic trip-log of `repeats` timestamped entries
@@ -102,7 +150,14 @@ enum PromptLibrary {
                 "[\(stamp)] trip log: speed \(speed) km/h, battery SoC \(soc)%, " +
                 "consumption \(String(format: "%.1f", kwh)) kWh/100km, position \(location).")
         }
-        return lines.joined(separator: "\n")
-            + "\n\nWhat was the lowest state of charge mentioned, and where?"
+        // The English framing up front is not decoration: AFM language-detects
+        // the prompt, and a wall of numeric telemetry classifies as no supported
+        // language ("unsupported language or locale"). Anchoring the prompt in
+        // natural prose fixes that — identically for every engine, so it's fair.
+        return "The following is a trip log recorded by the vehicle during one drive. "
+            + "Read the whole log carefully and then answer the question that follows it.\n\n"
+            + lines.joined(separator: "\n")
+            + "\n\nQuestion: What was the lowest battery state of charge mentioned anywhere "
+            + "in the log above, and at which position did it occur? Answer in one sentence."
     }
 }
