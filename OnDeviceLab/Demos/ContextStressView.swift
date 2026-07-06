@@ -165,7 +165,7 @@ struct ContextStressView: View {
     }
 
     private var footer: some View {
-        Text("Context windows: Apple FM 4,096 · Qwen3 32k · Qwen3.5 262k")
+        Text("Context windows: Apple FM 4,096 · Qwen3 32k · SmolLM3 64k · Qwen3.5 262k")
             .font(.caption2).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 6)

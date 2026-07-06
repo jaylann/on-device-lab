@@ -43,7 +43,7 @@ enum ModelCatalog {
     /// AFM, puts exactly four engines on every screen — Chat picker, Extract /
     /// Tools chips, Arena lanes, Context engines and the benchmark table.
     /// (The rest of `all` stays available to the headless bench harness.)
-    static let featured: [LabModel] = [qwen06B, qwen17B, qwen35]
+    static let featured: [LabModel] = [qwen06B, smolLM3, qwen35]
 
     /// The models the in-app benchmark measures — same lineup as everywhere else.
     static let benchmarkSet: [LabModel] = featured

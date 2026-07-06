@@ -190,7 +190,7 @@ final class ToolCallRunner {
         [Contender(id: afmID, title: "Apple FM · ~3B · 2-bit")]
         + ModelCatalog.featured.map { Contender(id: $0.id, title: $0.displayName) }
 
-    var selection: String = ModelCatalog.qwen17B.id
+    var selection: String = ModelCatalog.smolLM3.id
     var trace: [ToolTraceStep] = []
     var isRunning = false
     var loadProgress: Double?
