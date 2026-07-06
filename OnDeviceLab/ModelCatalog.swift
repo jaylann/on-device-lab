@@ -45,6 +45,17 @@ enum ModelCatalog {
     /// (The rest of `all` stays available to the headless bench harness.)
     static let featured: [LabModel] = [qwen06B, smolLM3, qwen35]
 
+    /// Apple's system model as a Chat-pickable entry. Not a Hugging Face repo —
+    /// `LLMEngine` routes this id to `AFMEngine` instead of an MLX load.
+    static let afmChat = LabModel(
+        id: "afm",
+        displayName: "Apple FM · ~3B · 2-bit",
+        note: "System model · needs Apple Intelligence · 4,096 ctx")
+
+    /// What the Chat picker offers: AFM plus the featured open weights — the
+    /// same four engines as every other tab.
+    static let chatLineup: [LabModel] = [afmChat] + featured
+
     /// The models the in-app benchmark measures — same lineup as everywhere else.
     static let benchmarkSet: [LabModel] = featured
 

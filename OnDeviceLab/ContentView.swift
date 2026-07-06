@@ -47,7 +47,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showingModelPicker) {
-            ModelPickerSheet(models: ModelCatalog.featured, selection: $selectedModel)
+            ModelPickerSheet(models: ModelCatalog.chatLineup, selection: $selectedModel)
         }
     }
 
@@ -154,7 +154,9 @@ struct ContentView: View {
     private var metrics: some View {
         HStack(spacing: 22) {
             flatStat("TTFT", engine.ttftMs > 0 ? String(format: "%.0f ms", engine.ttftMs) : "—")
-            flatStat("Tokens/s", engine.tokensPerSecond > 0 ? String(format: "%.0f", engine.tokensPerSecond) : "—")
+            flatStat("Tokens/s", engine.tokensPerSecond > 0
+                ? (engine.tokensEstimated ? "≈" : "") + String(format: "%.0f", engine.tokensPerSecond)
+                : "—")
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 6)

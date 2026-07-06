@@ -73,10 +73,12 @@ enum PromptLibrary {
 
     /// Extract preset: the stress test — ~2k tokens of OCR-grade mess. The six
     /// real fields are scattered through marketing filler, terms boilerplate and
-    /// (the actual trap) a "recent sessions" history full of lookalike values.
-    /// Long enough to bury the needle, still inside AFM's 4,096-token window so
-    /// it tests extraction, not context overflow. Wrong values or dropped fields
-    /// on stage ARE the demo.
+    /// four traps: a "recent sessions" history of lookalike values, a NOT-billed
+    /// unplug estimate right before the real block, OCR digit/letter swaps in the
+    /// billed numbers (6l.5kWh, 8O.OO hold), and a duration in min+s (44min48s
+    /// = 44.8) with the session id broken across a line. Long enough to bury the
+    /// needle, still inside AFM's 4,096-token window so it tests extraction, not
+    /// context overflow. Wrong values or dropped fields on stage ARE the demo.
     static let chargingInvoiceScan = """
     fastned deutschland gmbh & co. kg -- CHARGlNG RECElPT -- page 1/3
     customer copy *** retain for your records *** doc-scan quality: LOW
@@ -107,11 +109,17 @@ enum PromptLibrary {
     submitted within 8 weeks of the charging date. This document was produced
     automatically and is valid without signature.
 
+    SESSION SUMMARY AS SHOWN AT UNPLUG (estimate only, NOT billed):
+    energy ~61.2 kWh | time ~44 min | est. cost 54.47 EUR
+    figures above are a connector-side preview; see final receipt below.
+
     ******************* CURRENT SESSION *******************
     started 2026-06-19T21:03:12+02:00 | connector CCS right | auth: app
-    energy de1ivered 61.5kWh | charging time 44 . 8min
+    energy de1ivered 6l.5kWh | charging time 44min48s
     tariff 0.89 EUR/kWh (Standard, no membership discount applied)
-    sess. id FASTNED-DE-1119-002764
+    sess. id FASTNED-DE-1119-
+    002764
+    card authorization hold 8O.OO EUR (released after billing)
     tOTAL 58 . 41 EUR incl.19%VAT (net 49.08 EUR, VAT 9.33 EUR)
     payment: visa ****4412, authorized 21:48:07, code 00 (approved)
     *** thank you & safe travels ***
