@@ -13,11 +13,13 @@ struct ToolCallingView: View {
             VStack(spacing: DS.Space.section) {
                 TabExplainer("One question, real tool calls, the same three tools — AFM's native Tool loop vs a grammar-locked JSON loop, every hop in the trace.")
                 engineChips
+                Hairline()
                 traceCard
+                Hairline()
                 composer
             }
             .padding(DS.Space.gutter)
-            .labScreenBackground(tint: DS.accent)
+            .labScreenBackground()
             .navigationTitle("Tool Calling")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -66,9 +68,8 @@ struct ToolCallingView: View {
                 }
             }
         }
-        .padding(16)
+        .padding(.horizontal, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassTile(radius: DS.Radius.card)
     }
 
     /// One hop, sequence-diagram style: tinted node, connector down to the
@@ -140,8 +141,8 @@ struct ToolCallingView: View {
                 .font(.callout)
                 .lineLimit(2, reservesSpace: true)
                 .textFieldStyle(.plain)
-                .padding(.horizontal, 18).padding(.vertical, 12)
-                .glassTile(radius: DS.Radius.tile)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .glass(in: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
             runControl
         }
     }
@@ -154,15 +155,15 @@ struct ToolCallingView: View {
                     Text("\(Int(p * 100))%").font(.subheadline.monospacedDigit())
                 }
             }
-            .padding(.horizontal, 18)
-            .glassPill(height: DS.controlHeight)
+            .padding(.horizontal, 12)
+            .pill(height: DS.controlHeight)
         } else {
             Button { runner.run(prompt: promptText) } label: {
                 Image(systemName: "arrow.up").font(.body.weight(.bold))
                     .foregroundStyle(.white)
                     .frame(width: DS.controlHeight, height: DS.controlHeight)
-                    .glassPill(tint: DS.accent)
-                    .contentShape(Capsule())
+                    .accentGlass(in: Circle())
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.return, modifiers: [])
@@ -184,10 +185,10 @@ final class ToolCallRunner {
 
     static let afmID = "afm"
 
-    /// AFM plus the full model catalog — the same lineup the Chat tab offers.
+    /// AFM plus three open-weight contenders — four chips, no scrolling on stage.
     let contenders: [Contender] =
         [Contender(id: afmID, title: "Apple FM · ~3B · 2-bit")]
-        + ModelCatalog.all.map { Contender(id: $0.id, title: $0.displayName) }
+        + ModelCatalog.featured.map { Contender(id: $0.id, title: $0.displayName) }
 
     var selection: String = ModelCatalog.qwen17B.id
     var trace: [ToolTraceStep] = []

@@ -1,26 +1,50 @@
 import SwiftUI
 
-// Lightweight, self-contained Liquid Glass design layer for the demo.
-// Native iOS 26 / macOS 26 glass APIs, with graceful fallbacks when
-// Reduce Transparency or Increase Contrast are on.
+// Flat, hairline-separated design layer tuned for macOS. Solid surfaces with
+// 0.5pt separators; glass appears only as an accent on the circular primary
+// action button (`accentGlass`).
 
 enum DS {
     static let accent = Color.accentColor
 
     #if os(macOS)
-    static let background = Color(nsColor: .windowBackgroundColor)
+    /// Charcoal canvas in dark mode (a notch below the system window gray);
+    /// standard window background in light mode.
+    static let background = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(srgbRed: 0.086, green: 0.086, blue: 0.094, alpha: 1)
+            : .windowBackgroundColor
+    })
+    /// Panel surface, slightly raised off the window background.
+    static let panelBackground = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(srgbRed: 0.125, green: 0.125, blue: 0.137, alpha: 1)
+            : .textBackgroundColor
+    })
+    static let hairline = Color(nsColor: .separatorColor)
     #else
     static let background = Color(uiColor: .systemBackground)
+    static let panelBackground = Color(uiColor: .secondarySystemGroupedBackground)
+    static let hairline = Color(uiColor: .separator)
     #endif
 
+    static let hairlineWidth: CGFloat = 0.5
+
     /// Every interactive control (model trigger, Load, send) shares one height
-    /// so a row of them reads as a single bar.
-    static let controlHeight: CGFloat = 48
+    /// so a row of them reads as a single bar. 32 matches macOS control scale;
+    /// iOS keeps the 44pt touch-target floor.
+    static let controlHeight: CGFloat = {
+        #if os(macOS)
+        32
+        #else
+        44
+        #endif
+    }()
 
     enum Radius {
         static let card: CGFloat = 28
         static let tile: CGFloat = 24
-        static let control: CGFloat = 14
+        static let control: CGFloat = 22
         static let chip: CGFloat = 12
     }
 
@@ -31,118 +55,129 @@ enum DS {
     }
 }
 
-// MARK: - Ambient gradient background
-
-private struct AmbientGradientBackground: ViewModifier {
-    let tint: Color
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    func body(content: Content) -> some View {
-        content.background {
-            if contrast == .increased || reduceTransparency {
-                DS.background.ignoresSafeArea()
-            } else {
-                LinearGradient(
-                    colors: [tint.opacity(0.18), DS.background],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            }
-        }
-    }
-}
-
-// MARK: - Glass card surface
-
-private struct GlassCard: ViewModifier {
-    var radius: CGFloat = DS.Radius.card
-    var padding: CGFloat = DS.Space.gutter
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let padded = content.padding(padding)
-        if !reduceTransparency, #available(iOS 26.0, macOS 26.0, *) {
-            padded.glassEffect(.regular, in: shape)
-        } else {
-            padded.background(.regularMaterial, in: shape)
-        }
-    }
-}
+// MARK: - Screen background
 
 extension View {
-    func ambientGradientBackground(tint: Color = DS.accent) -> some View {
-        modifier(AmbientGradientBackground(tint: tint))
-    }
-
-    /// The one background every screen uses: ambient gradient, and on macOS the
-    /// window-toolbar background hidden so the gradient runs under the title bar
-    /// (identical on every tab instead of only where a ScrollView happened to
-    /// reach the top edge).
+    /// The one background every screen uses: the flat window background. On
+    /// macOS the window-toolbar background is hidden so the same gray runs
+    /// under the title bar on every tab.
     @ViewBuilder
-    func labScreenBackground(tint: Color = DS.accent) -> some View {
+    func labScreenBackground() -> some View {
         #if os(macOS)
         if #available(macOS 15.0, *) {
-            ambientGradientBackground(tint: tint)
+            background(DS.background.ignoresSafeArea())
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         } else {
-            ambientGradientBackground(tint: tint)
+            background(DS.background.ignoresSafeArea())
         }
         #else
-        ambientGradientBackground(tint: tint)
+        background(DS.background.ignoresSafeArea())
         #endif
-    }
-
-    func glassCard(radius: CGFloat = DS.Radius.card, padding: CGFloat = DS.Space.gutter) -> some View {
-        modifier(GlassCard(radius: radius, padding: padding))
     }
 }
 
-// MARK: - Glass tile
+// MARK: - Panel surface
 
-/// The single rounded-rect glass surface shared by every panel, metric cell,
-/// control and composer in the app, so they all read as the same material.
-/// An optional fixed `height` stops tiles from resizing as their content
-/// changes (a metric reading "—" and one reading "412 ms" occupy the same box).
-/// Falls back to a material fill when Reduce Transparency is on.
-struct GlassTile: ViewModifier {
+/// The single flat surface shared by every card, metric cell, control and
+/// composer in the app: solid panel fill with a hairline border, so they all
+/// read as the same material. An optional fixed `height` stops cells from
+/// resizing as their content changes (a metric reading "—" and one reading
+/// "412 ms" occupy the same box). A `tint` swaps in a faint tinted fill and
+/// tinted hairline; `prominent` fills solid accent for the primary action.
+struct Panel: ViewModifier {
     var radius: CGFloat = DS.Radius.tile
     var height: CGFloat?
     var tint: Color?
+    var prominent = false
     var capsule = false
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    @ViewBuilder func body(content: Content) -> some View {
+    func body(content: Content) -> some View {
         let shape: AnyShape = capsule
             ? AnyShape(Capsule(style: .continuous))
             : AnyShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         let framed = content.frame(height: height)
-        if !reduceTransparency, #available(iOS 26.0, macOS 26.0, *) {
-            if let tint {
-                framed.glassEffect(.regular.tint(tint.opacity(0.5)), in: shape)
-            } else {
-                framed.glassEffect(.regular, in: shape)
-            }
+        if prominent {
+            framed.background(tint ?? DS.accent, in: shape)
         } else {
             framed
-                .background(.regularMaterial, in: shape)
-                .overlay(shape.stroke(Color.primary.opacity(0.08), lineWidth: 0.5))
+                .background(tint.map { $0.opacity(0.08) } ?? DS.panelBackground, in: shape)
+                .overlay(shape.stroke(tint?.opacity(0.35) ?? DS.hairline, lineWidth: DS.hairlineWidth))
         }
     }
 }
 
 extension View {
-    /// Rounded-rect glass surface. Provide `height` for fixed-size cells; omit it
+    /// Flat panel surface. Provide `height` for fixed-size cells; omit it
     /// for content that should size to fit (the output card).
-    func glassTile(radius: CGFloat = DS.Radius.tile, height: CGFloat? = nil, tint: Color? = nil) -> some View {
-        modifier(GlassTile(radius: radius, height: height, tint: tint))
+    func panel(radius: CGFloat = DS.Radius.tile, height: CGFloat? = nil, tint: Color? = nil) -> some View {
+        modifier(Panel(radius: radius, height: height, tint: tint))
     }
 
-    /// Fully-rounded (capsule) glass surface for pill controls and cells.
-    func glassPill(height: CGFloat? = nil, tint: Color? = nil) -> some View {
-        modifier(GlassTile(height: height, tint: tint, capsule: true))
+    /// Fully-rounded flat capsule for pill controls and cells.
+    /// `prominent` fills solid accent (pair with white foreground).
+    func pill(height: CGFloat? = nil, tint: Color? = nil, prominent: Bool = false) -> some View {
+        modifier(Panel(height: height, tint: tint, prominent: prominent, capsule: true))
+    }
+}
+
+// MARK: - Glass accent
+
+/// Glass survives in exactly one region: the composer bar. The accent-tinted
+/// primary action button gets real glass on OS 26+, solid accent everywhere
+/// else (older OS or Reduce Transparency) — the fallback is indistinguishable
+/// from flat.
+private struct AccentGlass<S: Shape>: ViewModifier {
+    let shape: S
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        if !reduceTransparency, #available(iOS 26.0, macOS 26.0, *) {
+            content.glassEffect(.regular.tint(DS.accent), in: shape)
+        } else {
+            content.background(DS.accent, in: shape)
+        }
+    }
+}
+
+/// Untinted glass for the composer field and its secondary controls.
+/// Material + hairline fallback below OS 26 / under Reduce Transparency.
+private struct GlassSurface<S: Shape>: ViewModifier {
+    let shape: S
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        if !reduceTransparency, #available(iOS 26.0, macOS 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content
+                .background(.regularMaterial, in: shape)
+                .overlay(shape.stroke(DS.hairline, lineWidth: DS.hairlineWidth))
+        }
+    }
+}
+
+extension View {
+    func accentGlass(in shape: some Shape) -> some View {
+        modifier(AccentGlass(shape: shape))
+    }
+
+    func glass(in shape: some Shape) -> some View {
+        modifier(GlassSurface(shape: shape))
+    }
+}
+
+// MARK: - Hairline
+
+/// 0.5pt separator line — the section divider of the flat layout.
+struct Hairline: View {
+    var vertical = false
+
+    var body: some View {
+        if vertical {
+            DS.hairline.frame(width: DS.hairlineWidth)
+        } else {
+            DS.hairline.frame(height: DS.hairlineWidth)
+        }
     }
 }
 

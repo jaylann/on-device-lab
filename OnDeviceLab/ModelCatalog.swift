@@ -39,14 +39,17 @@ enum ModelCatalog {
 
     static let all: [LabModel] = [qwen06B, qwen17B, qwen35, qwen4B, smolLM3, smolLM2]
 
-    /// The open-weight models on the deck's Round-1 latency chart, plus the 0.6B floor,
-    /// so the app measures the same lineup the deck reports. (The 4B is held back as the
-    /// M3 stress model; AFM + cloud are measured through their own paths.)
-    static let benchmarkSet: [LabModel] = [qwen17B, smolLM2, qwen35, smolLM3, qwen06B]
+    /// THE app lineup: one set of three open-weight models that, together with
+    /// AFM, puts exactly four engines on every screen — Chat picker, Extract /
+    /// Tools chips, Arena lanes, Context engines and the benchmark table.
+    /// (The rest of `all` stays available to the headless bench harness.)
+    static let featured: [LabModel] = [qwen06B, qwen17B, qwen35]
 
-    /// AFM's sparring partners in the arena — same ~size class as the on-device
-    /// 3B foundation model, so the race is fair.
-    static let arenaSet: [LabModel] = [qwen17B, qwen35, smolLM3]
+    /// The models the in-app benchmark measures — same lineup as everywhere else.
+    static let benchmarkSet: [LabModel] = featured
+
+    /// AFM's sparring partners in the arena — same lineup as everywhere else.
+    static let arenaSet: [LabModel] = featured
 
     /// Local model share (slide 26): if `~/Documents/models/<repo-leaf>` exists, load it with
     /// no network. Otherwise fall back to a Hugging Face download. `fetch-models.sh` stages this.

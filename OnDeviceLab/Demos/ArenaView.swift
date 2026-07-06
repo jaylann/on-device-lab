@@ -27,7 +27,7 @@ struct ArenaView: View {
                 composer
             }
             .padding(DS.Space.gutter)
-            .labScreenBackground(tint: DS.accent)
+            .labScreenBackground()
             .navigationTitle("Arena")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -42,14 +42,18 @@ struct ArenaView: View {
 
     @ViewBuilder private var lanes: some View {
         #if os(macOS)
-        HStack(spacing: DS.Space.row) {
-            ForEach(runner.lanes) { lane in laneCard(lane) }
+        HStack(spacing: DS.Space.gutter) {
+            ForEach(Array(runner.lanes.enumerated()), id: \.element.id) { index, lane in
+                if index > 0 { Hairline(vertical: true) }
+                laneCard(lane)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         #else
         ScrollView {
             VStack(spacing: DS.Space.row) {
-                ForEach(runner.lanes) { lane in
+                ForEach(Array(runner.lanes.enumerated()), id: \.element.id) { index, lane in
+                    if index > 0 { Hairline() }
                     laneCard(lane).frame(height: 280)
                 }
             }
@@ -102,8 +106,8 @@ struct ArenaView: View {
                 .font(.callout)
                 .lineLimit(2, reservesSpace: true)
                 .textFieldStyle(.plain)
-                .padding(.horizontal, 18).padding(.vertical, 12)
-                .glassTile(radius: DS.Radius.tile)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .glass(in: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
                 .onSubmit(go)
             goControl
         }
@@ -114,17 +118,23 @@ struct ArenaView: View {
             Button { runner.stop() } label: {
                 Image(systemName: "stop.fill").font(.body)
                     .frame(width: DS.controlHeight, height: DS.controlHeight)
-                    .glassPill()
-                    .contentShape(Capsule())
+                    .glass(in: Circle())
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
         } else {
             Button(action: go) {
-                Image(systemName: "flag.checkered").font(.body.weight(.bold))
-                    .foregroundStyle(goEnabled ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
-                    .frame(width: DS.controlHeight, height: DS.controlHeight)
-                    .glassPill(tint: goEnabled ? DS.accent : nil)
-                    .contentShape(Capsule())
+                Group {
+                    let icon = Image(systemName: "flag.checkered").font(.body.weight(.bold))
+                        .foregroundStyle(goEnabled ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                        .frame(width: DS.controlHeight, height: DS.controlHeight)
+                    if goEnabled {
+                        icon.accentGlass(in: Circle())
+                    } else {
+                        icon.glass(in: Circle())
+                    }
+                }
+                .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.return, modifiers: [])
@@ -162,15 +172,8 @@ private struct ArenaLaneView: View {
                 unavailableBody
             }
         }
-        .padding(16)
+        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassTile(radius: DS.Radius.card)
-        .overlay {
-            if holdsARecord {
-                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                    .stroke(tint.opacity(0.5), lineWidth: 1.5)
-            }
-        }
         .animation(.easeOut(duration: 0.25), value: holdsARecord)
     }
 

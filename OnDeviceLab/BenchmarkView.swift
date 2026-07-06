@@ -18,7 +18,7 @@ struct BenchmarkView: View {
             .padding(DS.Space.gutter)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .labScreenBackground(tint: DS.accent)
+        .labScreenBackground()
         .onChange(of: runner.isRunning) { _, running in
             // Write the export file once, when a run finishes — not on every redraw.
             guard !running else { exportURL = nil; return }
@@ -50,7 +50,7 @@ struct BenchmarkView: View {
     private var resultsCard: some View {
         VStack(spacing: 0) {
             row(["Model", "TTFT p50", "TTFT p99", "tok/s"], header: true)
-            Divider().overlay(Color.primary.opacity(0.08)).padding(.vertical, 10)
+            Hairline().padding(.vertical, 10)
 
             if runner.results.isEmpty {
                 ForEach(Array(models.enumerated()), id: \.element.id) { index, model in
@@ -69,12 +69,11 @@ struct BenchmarkView: View {
                 }
             }
         }
-        .padding(18)
-        .glassTile(radius: DS.Radius.card)
+        .padding(.horizontal, 6)
     }
 
     private var rowDivider: some View {
-        Divider().overlay(Color.primary.opacity(0.05))
+        Hairline().opacity(0.6)
     }
 
     private func row(_ cells: [String], header: Bool) -> some View {

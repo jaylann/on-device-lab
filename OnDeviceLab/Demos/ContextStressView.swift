@@ -17,12 +17,13 @@ struct ContextStressView: View {
                 TabExplainer("A growing needle-in-a-trip-log prompt against each model's context window — watch AFM hit its 4,096-token hard limit while the open windows keep going.")
                 sizeChips
                 engineChips
+                Hairline()
                 resultsTable
                 footer
                 runButton
             }
             .padding(DS.Space.gutter)
-            .labScreenBackground(tint: DS.accent)
+            .labScreenBackground()
             .navigationTitle("Context Stress")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -81,7 +82,7 @@ struct ContextStressView: View {
                         }
                         ForEach(runner.rows) { row in
                             resultRow(row)
-                            Divider().opacity(0.5)
+                            Hairline().opacity(0.6)
                         }
                         Color.clear.frame(height: 1).id("rows-bottom")
                     }
@@ -91,9 +92,8 @@ struct ContextStressView: View {
                 }
             }
         }
-        .padding(16)
+        .padding(.horizontal, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassTile(radius: DS.Radius.card)
     }
 
     private var tableHeader: some View {
@@ -165,7 +165,7 @@ struct ContextStressView: View {
     }
 
     private var footer: some View {
-        Text("Context windows: Apple FM 4,096 · Qwen3 32k · Qwen3.5 262k · SmolLM3 64k")
+        Text("Context windows: Apple FM 4,096 · Qwen3 32k · Qwen3.5 262k")
             .font(.caption2).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 6)
@@ -180,7 +180,7 @@ struct ContextStressView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(runButtonEnabled ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
                 .frame(maxWidth: .infinity)
-                .glassPill(height: DS.controlHeight, tint: runButtonEnabled ? DS.accent : nil)
+                .pill(height: DS.controlHeight, prominent: runButtonEnabled)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

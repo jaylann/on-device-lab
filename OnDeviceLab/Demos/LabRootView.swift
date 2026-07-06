@@ -105,7 +105,11 @@ struct EngineBadge: View {
             .foregroundStyle(DS.engineTint(badge: text))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(DS.engineTint(badge: text).opacity(0.12), in: Capsule(style: .continuous))
+            .background(DS.engineTint(badge: text).opacity(0.06), in: RoundedRectangle(cornerRadius: DS.Radius.chip, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.chip, style: .continuous)
+                    .strokeBorder(DS.engineTint(badge: text).opacity(0.5), lineWidth: DS.hairlineWidth)
+            )
     }
 }
 
@@ -120,9 +124,9 @@ struct EngineChip: View {
         Button(action: action) {
             Text(title)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                .padding(.horizontal, 14)
-                .glassPill(height: 36, tint: selected ? DS.accent : nil)
+                .foregroundStyle(selected ? AnyShapeStyle(DS.accent) : AnyShapeStyle(.secondary))
+                .padding(.horizontal, 12)
+                .pill(height: DS.controlHeight, tint: selected ? DS.accent : nil)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

@@ -41,12 +41,14 @@ struct StructuredOutputView: View {
                 TabExplainer("Same receipt into each engine, out comes typed JSON — Apple FM via @Generable constrained decoding, open weights via an XGrammar grammar lock.")
                 engineChips
                 presetChips
+                Hairline()
                 resultCard
+                Hairline()
                 scoreboard
                 runButton
             }
             .padding(DS.Space.gutter)
-            .labScreenBackground(tint: DS.accent)
+            .labScreenBackground()
             .navigationTitle("Structured Output")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -96,9 +98,8 @@ struct StructuredOutputView: View {
                 resultBody.frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(16)
+        .padding(.horizontal, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassTile(radius: DS.Radius.card)
     }
 
     private var eyebrow: String {
@@ -194,7 +195,7 @@ struct StructuredOutputView: View {
                                 in: RoundedRectangle(cornerRadius: DS.Radius.chip, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: DS.Radius.chip, style: .continuous)
-                            .stroke(Color.red.opacity(0.18), lineWidth: 1)
+                            .strokeBorder(Color.red.opacity(0.3), lineWidth: DS.hairlineWidth)
                     }
             }
         }
@@ -236,9 +237,8 @@ struct StructuredOutputView: View {
                 .foregroundStyle(.tertiary)
                 .padding(.top, 2)
         }
-        .padding(16)
+        .padding(.horizontal, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassTile(radius: DS.Radius.tile)
     }
 
     private var runButton: some View {
@@ -247,7 +247,7 @@ struct StructuredOutputView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(runner.isRunning ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white))
                 .frame(maxWidth: .infinity)
-                .glassPill(height: DS.controlHeight, tint: runner.isRunning ? nil : DS.accent)
+                .pill(height: DS.controlHeight, prominent: !runner.isRunning)
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -278,10 +278,10 @@ final class ExtractionRunner {
 
     static let afmID = "afm"
 
-    /// AFM plus the full model catalog — the same lineup the Chat tab offers.
+    /// AFM plus three open-weight contenders — four chips, no scrolling on stage.
     let contenders: [Contender] =
         [Contender(id: afmID, title: "Apple FM · ~3B · 2-bit")]
-        + ModelCatalog.all.map { Contender(id: $0.id, title: $0.displayName) }
+        + ModelCatalog.featured.map { Contender(id: $0.id, title: $0.displayName) }
 
     var selection: String = ModelCatalog.qwen06B.id
     var state: State = .idle

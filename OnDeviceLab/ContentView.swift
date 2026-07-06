@@ -14,12 +14,14 @@ struct ContentView: View {
         NavigationStack {
             VStack(spacing: DS.Space.section) {
                 controlBar
+                Hairline()
                 output
+                Hairline()
                 metrics
                 composer
             }
             .padding(DS.Space.gutter)
-            .labScreenBackground(tint: DS.accent)
+            .labScreenBackground()
             .navigationTitle("On-Device Lab")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -45,7 +47,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showingModelPicker) {
-            ModelPickerSheet(models: ModelCatalog.all, selection: $selectedModel)
+            ModelPickerSheet(models: ModelCatalog.featured, selection: $selectedModel)
         }
     }
 
@@ -74,9 +76,9 @@ struct ContentView: View {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
-            .glassPill(height: DS.controlHeight)
+            .pill(height: DS.controlHeight)
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -89,16 +91,16 @@ struct ContentView: View {
                 ProgressView().controlSize(.small)
                 Text("\(Int(f * 100))%").font(.subheadline.monospacedDigit())
             }
-            .padding(.horizontal, 18)
-            .glassPill(height: DS.controlHeight)
+            .padding(.horizontal, 12)
+            .pill(height: DS.controlHeight)
         default:
             let loaded = engine.isLoaded && engine.loadedModel?.id == selectedModel.id
             Button { Task { await engine.load(selectedModel) } } label: {
                 Text(loaded ? "Loaded" : "Load")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(loaded ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                    .padding(.horizontal, 24)
-                    .glassPill(height: DS.controlHeight, tint: loaded ? nil : DS.accent)
+                    .foregroundStyle(loaded ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white))
+                    .padding(.horizontal, 20)
+                    .pill(height: DS.controlHeight, prominent: !loaded)
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -129,9 +131,8 @@ struct ContentView: View {
                 }
             }
         }
-        .padding(16)
+        .padding(.horizontal, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassTile(radius: DS.Radius.card)
     }
 
     private var outputEyebrow: String {
@@ -177,8 +178,8 @@ struct ContentView: View {
                 .font(.callout)
                 .lineLimit(3, reservesSpace: true)
                 .textFieldStyle(.plain)
-                .padding(.horizontal, 18).padding(.vertical, 12)
-                .glassTile(radius: DS.Radius.tile)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .glass(in: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous))
                 .onSubmit(send)
             sendControl
         }
@@ -189,17 +190,23 @@ struct ContentView: View {
             Button { genTask?.cancel(); engine.isGenerating = false } label: {
                 Image(systemName: "stop.fill").font(.body)
                     .frame(width: DS.controlHeight, height: DS.controlHeight)
-                    .glassPill()
-                    .contentShape(Capsule())
+                    .glass(in: Circle())
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
         } else {
             Button(action: send) {
-                Image(systemName: "arrow.up").font(.body.weight(.bold))
-                    .foregroundStyle(sendEnabled ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
-                    .frame(width: DS.controlHeight, height: DS.controlHeight)
-                    .glassPill(tint: sendEnabled ? DS.accent : nil)
-                    .contentShape(Capsule())
+                Group {
+                    let icon = Image(systemName: "arrow.up").font(.body.weight(.bold))
+                        .foregroundStyle(sendEnabled ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                        .frame(width: DS.controlHeight, height: DS.controlHeight)
+                    if sendEnabled {
+                        icon.accentGlass(in: Circle())
+                    } else {
+                        icon.glass(in: Circle())
+                    }
+                }
+                .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.return, modifiers: [])

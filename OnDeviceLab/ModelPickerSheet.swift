@@ -17,7 +17,7 @@ struct ModelPickerSheet: View {
                 ForEach(Array(models.enumerated()), id: \.element.id) { index, model in
                     optionRow(model)
                     if index < models.count - 1 {
-                        Divider().padding(.leading, 16)
+                        Hairline().padding(.leading, 16)
                     }
                 }
             }
@@ -26,7 +26,7 @@ struct ModelPickerSheet: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
-        .ambientGradientBackground(tint: DS.accent)
+        .background(DS.background)
         .presentationDetents([.height(CGFloat(models.count) * 86 + 96)])
         .presentationDragIndicator(.visible)
     }
@@ -56,7 +56,7 @@ struct ModelPickerSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 isSelected ? DS.accent.opacity(0.12) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                in: RoundedRectangle(cornerRadius: DS.Radius.control, style: .continuous)
             )
             .contentShape(Rectangle())
         }
