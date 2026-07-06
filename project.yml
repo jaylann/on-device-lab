@@ -43,7 +43,9 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: LAC5ZD9J6Z
+        # No DEVELOPMENT_TEAM on purpose: participants clone on their own Apple IDs. With no team,
+        # macOS falls back to "Sign to Run Locally" and ⌘R just works. (Set your own team for a
+        # device build; the Mac code-along needs none.)
         # macOS SwiftUI apps are unsandboxed by default — HF model download + local file reads work with no entitlement.
       configs:
         Solution:

@@ -12,11 +12,13 @@ two numbers that decide on-device UX — **TTFT** (time to first token) and **th
 
 ## Requirements
 - **Apple Silicon Mac** (M1 or newer — any of them, including Air)
-- **Xcode 16+** (developed against Xcode 26) and ~4 GB free disk
+- **Xcode 26** and ~4 GB free disk. (The open-weight path builds on older Xcode too, but the
+  Apple Foundation Model tasks need the `FoundationModels` SDK that ships with Xcode 26.)
 - For the iPhone: an iPhone 12 or newer, iOS 17+
 
 The project is generated with [XcodeGen](https://github.com/yonaskolb/XcodeGen). The committed
-`.xcodeproj` works as-is; only run `xcodegen generate` if you change `project.yml`.
+`.xcodeproj` works as-is; only run `xcodegen generate` if you change `project.yml`. No signing
+team is set on purpose — with none, macOS falls back to "Sign to Run Locally" and ⌘R just works.
 
 ## Quick start
 ```bash
@@ -24,37 +26,61 @@ git clone https://github.com/jaylann/on-device-lab
 cd on-device-lab
 open OnDeviceLab.xcodeproj      # then ⌘R
 ```
-Pick **Qwen3 0.6B · 4-bit**, press **Load** (first load downloads ~0.3 GB, or reads the local
+Pick **Qwen3 0.6B · 4-bit**, press **Load** (it uses your pre-cached weights, or the local
 share — see below), type a prompt, press **Send**. Tokens stream. That's the whole on-device stack.
+
+> **Xcode red on ⌘R?** Signing → target → *Signing & Capabilities* → Team = **None / Sign to Run
+> Locally** (macOS needs no team). Mangled your checkout mid-exercise? `git stash` to park your
+> edits, or last resort `cd .. && rm -rf on-device-lab && git clone …` to start clean.
 
 ---
 
-## The exercise — three milestones
+## The exercise — four milestones
+
+Each milestone maps to a round from the talk's "Gauntlet", and each coding task exists in two
+flavours: the **open-weight** way and the **Apple Foundation Model** way — the same job, opposite
+philosophies. That contrast is the whole point.
+
+> **Everything is skippable.** Every `TODO` has a reference implementation in
+> `OnDeviceLab/Solutions/Solutions.swift`, compiled only by the **`OnDeviceLab (Solution)`**
+> scheme (`#if SOLUTION`). Stuck? Switch to that scheme to unblock — it keeps your own edits, and
+> the answers aren't sitting inline in the file you're editing (so no accidental spoilers).
+>
+> **AFM tasks:** you *write* them on any Xcode 26, but they only *run* on macOS 26 + Apple
+> Intelligence. The open-weight tasks run on every Apple Silicon Mac.
 
 ### M1 · Run it
-Load Qwen3 0.6B, prompt it, watch the stream. Done above.
+Load Qwen3 0.6B, prompt it, watch the stream. Done above. No code.
 
-### M2 · Measure it  ← the actual exercise
-Open **`OnDeviceLab/Benchmark.swift`** and find `measure(...)`. The loop, warmup, percentiles and
-JSON export are written for you. **Two lines are not** — marked `TODO 1` and `TODO 2`:
-1. **TTFT** — the first time a chunk arrives, stamp `firstTokenTime = Date()` (once).
-2. **Throughput** — increment `tokenCount` once per chunk.
+### M2 · Measure it — round 1 (latency)
+`OnDeviceLab/Benchmark.swift`, `measure(...)`. Loop, warmup, percentiles, export are written.
+**Two lines are not** — `TODO 1` (stamp `firstTokenTime = Date()` on the first chunk) and
+`TODO 2` (increment `tokenCount` per chunk). Until then the **Benchmark** sheet reports `0 tok/s`.
+Fill them, hit **Run suite**, shout your numbers — we collect them across M1 → M4 chips. (Export
+JSON matches the Python harness schema, so `bench/apply_bench.py` drops them onto the slide.)
 
-Until you fill them, the **Benchmark** sheet reports `0 tok/s` — that's the point. Fill them, hit
-**Run suite**, and shout your numbers. We collect everyone's across M1 → M4 chips.
+### M3 · Extract it — round 2 (structured output)
+`OnDeviceLab/Demos/TicketExtraction.swift`. Pull six fields out of a messy charging receipt.
+- **Open-weight** — `TODO 3a` in `TicketValidator.validate(rawOutput:)`: decode the stripped
+  text into `InvoiceFields`, then report `missingFields`. *Generate text, then validate it.*
+- **Apple FM** — `TODO 3b` in `AFMExtractor.extractInvoice`: one `session.respond(to:,
+  generating: GenerableInvoice.self)` call. *Generate straight into a type — bad JSON is impossible.*
 
-> Stuck or just want numbers fast? Switch the scheme to **OnDeviceLab (Solution)** — it compiles a
-> reference implementation (`#if SOLUTION`) so you can check your answer.
+The **Extract** tab shows a red "validation failed" chip until 3a is filled.
 
-Export results as JSON from the sheet (AirDrop from iPhone → Mac). The JSON matches the Python
-harness schema, so `bench/apply_bench.py` can drop your numbers straight onto the slide.
+### M4 · Tool it — round 3 (tool calling)
+`OnDeviceLab/Demos/CarTools.swift`. Answer a driver's question by calling car tools.
+- **Open-weight** — `TODO 4a` in `MLXToolProtocol.parseToolCall(_:)`: parse `{"tool":…,
+  "arguments":…}` out of the reply. *"Function calling" is just a prompt + your own parser.*
+- **Apple FM** — `TODO 4b` in `WeatherTool.call(arguments:)`: implement one `Tool` struct
+  (the other two are done for reference). *Typed structs; the runtime runs the call loop.*
 
-### M3 · Stress it
+The **Tools** tab shows the model turn but never fires a tool until 4a is filled.
+
+### Bonus · Stress it — round 4 (context)
 Switch to **Qwen3 4B** and feel what several billion more params cost. Pick **Long-context prompt**
-from the **Sample prompts** menu (top-right) and watch the window fill. **Turn off Wi-Fi**
-mid-generation — generation keeps streaming, fully offline. That's the entire thesis of the talk.
-
-Finished early? Make the model return strict JSON for a messy ticket, then try to break it.
+from the **Sample prompts** menu and watch the window fill. **Turn off Wi-Fi** mid-generation —
+it keeps streaming, fully offline. That's the entire thesis of the talk. Still going? Race the Arena.
 
 ---
 
@@ -82,13 +108,18 @@ Three 4-bit models, all from `mlx-community`:
 |---|---|---|
 | `Qwen3-0.6B-4bit` | extraction | ~0.3 GB |
 | `Qwen3-1.7B-4bit` | robust (the model NeatPass ships) | ~1 GB |
-| `Qwen3-4B-4bit` | stress (M3) | ~2.3 GB |
+| `Qwen3-4B-4bit` | stress (bonus) | ~2.3 GB |
 
-By default the app downloads from Hugging Face on first use. To avoid 30 simultaneous downloads at
-the venue, pre-stage them and use the local share:
+**Before the venue — do this at home.** Open the app once on any internet and **Load** each model
+(0.6B, 1.7B, 4B). MLX caches the weights to `~/.cache/huggingface`, so from then on the app runs
+fully offline — no venue Wi-Fi, no USB needed. 25 people downloading ~3.6 GB each at 09:00 is the
+meltdown we're avoiding; a few minutes at home over breakfast spreads it out.
+
+**Backup only** — for a locked-down / offline machine that can't pre-download (some corp laptops
+block Hugging Face): grab pre-staged weights from the on-site local share.
 ```bash
-./fetch-models.sh                 # stages ./models
-# copy ./models to each Mac's ~/Documents/models/  → the app loads them offline
+./fetch-models.sh                 # stages ./models (run once, ahead of time)
+# copy ./models to the Mac's ~/Documents/models/  → the app loads them with zero network
 ```
 
 ---
@@ -99,7 +130,11 @@ the venue, pre-stage them and use the local share:
   model loading, the tokenizer, and streaming generation.
 - `ModelCatalog` loads a `ModelContainer` (HF id or a local directory).
 - `LLMEngine` streams a chat reply (`ChatSession.streamResponse`).
-- `Benchmark` wraps the same stream to time it — the teaching core.
+- `Benchmark`, `TicketExtraction` and `CarTools` carry the `#if SOLUTION` teaching TODOs
+  (measure / extract / tool-call), each with an open-weight and an Apple FM path.
+
+> **Presenting?** Run the **`OnDeviceLab (Solution)`** scheme so the Extract / Tools / Arena tabs
+> are fully wired for the live demos. Participants use the default scheme (the TODO stubs).
 
 ## License
 MIT — see [LICENSE](LICENSE). Model weights are under their own licenses (Qwen3, Apache-2.0).

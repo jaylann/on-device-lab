@@ -16,6 +16,7 @@
 		2E2F505707A3526544F6AEBF /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49218CCB82BF0F5E5E364BBC /* ModelCatalog.swift */; };
 		306C1D5B63484454CF1A347A /* AFMEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4CF12A322CAB7519719E1E7 /* AFMEngine.swift */; };
 		37AE4B113BA31FF494DFCC33 /* PromptLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFE25FDB83542234619F8AC1 /* PromptLibrary.swift */; };
+		41675A83CB346C573FE82C4B /* Solutions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF21117CBA9866A03B362874 /* Solutions.swift */; };
 		45096D61F90C0FCE1D533DE7 /* Benchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A518C9A378594A8B05BA3E75 /* Benchmark.swift */; };
 		4674AB02C8BC54056ACE9540 /* BenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61D00D3142972F34C37533B0 /* BenchmarkView.swift */; };
 		49DAFC871715B24F89089027 /* ModelPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853270F8F14870BE7A3A8C1C /* ModelPickerSheet.swift */; };
@@ -62,6 +63,7 @@
 		C8FE584837F3B4748EAD26A3 /* ExportedResults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportedResults.swift; sourceTree = "<group>"; };
 		D953CF44842015038CE4CB04 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		DAAD7A8AE5E394AA2FDAC733 /* ContextStressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextStressView.swift; sourceTree = "<group>"; };
+		EF21117CBA9866A03B362874 /* Solutions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Solutions.swift; sourceTree = "<group>"; };
 		FF9CC2166A188428D6A2AE3E /* ArenaRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArenaRunner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -101,6 +103,14 @@
 			path = Demos;
 			sourceTree = "<group>";
 		};
+		5EC1D654E9971C72FF6DAD89 /* Solutions */ = {
+			isa = PBXGroup;
+			children = (
+				EF21117CBA9866A03B362874 /* Solutions.swift */,
+			);
+			path = Solutions;
+			sourceTree = "<group>";
+		};
 		66AE785976F86501529030E9 /* OnDeviceLab */ = {
 			isa = PBXGroup;
 			children = (
@@ -118,6 +128,7 @@
 				D953CF44842015038CE4CB04 /* Theme.swift */,
 				3D045F552B655FD78CEABCF5 /* Demos */,
 				9BBF871A9E6A7163B769D2ED /* Engines */,
+				5EC1D654E9971C72FF6DAD89 /* Solutions */,
 			);
 			path = OnDeviceLab;
 			sourceTree = "<group>";
@@ -176,7 +187,6 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					02F0135689B70416A0E449CB = {
-						DevelopmentTeam = LAC5ZD9J6Z;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -236,6 +246,7 @@
 				49DAFC871715B24F89089027 /* ModelPickerSheet.swift in Sources */,
 				EF198E1751449239A3DD004F /* OnDeviceLabApp.swift in Sources */,
 				37AE4B113BA31FF494DFCC33 /* PromptLibrary.swift in Sources */,
+				41675A83CB346C573FE82C4B /* Solutions.swift in Sources */,
 				7A5D1F4BEED4B05158907E42 /* StreamMetrics.swift in Sources */,
 				C8FFF4E32BC5318999C4A08A /* StructuredOutputView.swift in Sources */,
 				20D14518AA37C48F603ECF86 /* Theme.swift in Sources */,
@@ -253,7 +264,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = LAC5ZD9J6Z;
 				INFOPLIST_KEY_CFBundleDisplayName = "On-Device Lab";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -346,7 +356,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = LAC5ZD9J6Z;
 				INFOPLIST_KEY_CFBundleDisplayName = "On-Device Lab";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -443,7 +452,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = LAC5ZD9J6Z;
 				INFOPLIST_KEY_CFBundleDisplayName = "On-Device Lab";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

@@ -84,20 +84,10 @@ final class BenchmarkRunner {
         var tokenCount = 0
 
         // Each `chunk` is the model's next bit of decoded text — roughly one token.
+        // The per-token bookkeeping is the exercise: it lives in `tally(...)` below.
         for try await chunk in session.streamResponse(to: prompt) {
-            #if SOLUTION
-            if firstTokenTime == nil { firstTokenTime = Date() }   // TTFT: stamp the first token
-            tokenCount += 1                                        // throughput: count every token
-            #else
-            // ─────────────────────────────────────────────────────────────────
-            // TODO 1 — TTFT: the FIRST time through this loop, record the time.
-            //   Set `firstTokenTime = Date()` exactly once (guard on it being nil).
-            //
-            // TODO 2 — throughput: count tokens as they stream.
-            //   Increment `tokenCount` once per chunk.
-            // ─────────────────────────────────────────────────────────────────
             _ = chunk
-            #endif
+            tally(firstTokenTime: &firstTokenTime, tokenCount: &tokenCount)
         }
 
         let end = Date()
@@ -107,6 +97,23 @@ final class BenchmarkRunner {
         let tokPerSec = Double(tokenCount) / decodeSeconds
         return BenchSample(ttft: ttft, tokPerSec: tokPerSec, tokens: tokenCount)
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  MILESTONE 2 · MEASURE IT — round 1 (latency)
+    //  Called once per streamed token by `measure()` above. Fill in the two
+    //  numbers that decide on-device UX. Until you do, the sheet reports 0 tok/s.
+    //  Stuck? Build the "OnDeviceLab (Solution)" scheme (its reference lives in
+    //  Solutions/Solutions.swift — no peeking).
+    // ─────────────────────────────────────────────────────────────────────────
+    #if !SOLUTION
+    func tally(firstTokenTime: inout Date?, tokenCount: inout Int) {
+        // TODO 1 — TTFT: the FIRST time this is called, record the moment.
+        //   Set `firstTokenTime = Date()` exactly once (guard on it being nil).
+        //
+        // TODO 2 — throughput: count tokens as they stream.
+        //   Increment `tokenCount` by one on every call.
+    }
+    #endif
 
     private func summarize(model: LabModel, samples: [BenchSample]) -> ModelBenchResult {
         let ttfts = samples.map { $0.ttft * 1000 }.sorted()

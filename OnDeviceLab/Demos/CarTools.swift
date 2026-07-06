@@ -103,14 +103,25 @@ enum MLXToolProtocol {
     /// Pull `{"tool": ..., "arguments": {...}}` out of a model reply, if the
     /// reply is a tool call at all. Reuses the extraction stripper so `<think>`
     /// blocks and fences don't confuse the parser.
+    ///
+    /// ── MILESTONE 4a · TOOL IT (open-weight path) ────────────────────────────
+    /// Open-weight "function calling" has no runtime support — it's just the
+    /// `systemPrompt` contract above plus THIS parser. Turn a model reply into a
+    /// `ParsedToolCall`, or `nil` if it isn't a tool call (then it's the final
+    /// answer). `strip()` already isolated the JSON. Until you fill this in, the
+    /// Tools tab shows the model turn but never fires a tool. Stuck? Build the
+    /// "OnDeviceLab (Solution)" scheme (reference lives in Solutions/Solutions.swift).
+    /// ─────────────────────────────────────────────────────────────────────────
+    #if !SOLUTION
     static func parseToolCall(_ text: String) -> ParsedToolCall? {
         let cleaned = TicketValidator.strip(text)
-        guard let data = cleaned.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let name = object["tool"] as? String
-        else { return nil }
-        return ParsedToolCall(name: name, arguments: object["arguments"] as? [String: Any] ?? [:])
+        // TODO 4a — JSON-decode `cleaned`; if it has a string "tool" key, return a
+        //   ParsedToolCall(name:, arguments:) using its "arguments" object (or [:]).
+        //   Otherwise return nil so the caller treats the reply as the final answer.
+        _ = cleaned
+        return nil
     }
+    #endif
 }
 
 // MARK: - Apple FM tools (runtime-managed call loop)
@@ -165,11 +176,24 @@ struct WeatherTool: Tool {
         var at: String
     }
 
+    /// ── MILESTONE 4b · TOOL IT (Apple FM path) ──────────────────────────────
+    /// The mirror of 4a: no hand-rolled protocol. A tool is a typed struct — the
+    /// `@Generable Arguments` (above) let the runtime fill them and run the call
+    /// loop for you; you just implement the body. `ChargingStationsTool` and
+    /// `VehicleRangeTool` (also in this file) are done for reference. Do the same
+    /// for weather: read the toolbox, fire `onEvent` for the trace, return the
+    /// result. Runs on macOS 26; you write it on any Xcode 26. Stuck? Build the
+    /// "OnDeviceLab (Solution)" scheme (reference lives in Solutions/Solutions.swift).
+    /// ─────────────────────────────────────────────────────────────────────────
+    #if !SOLUTION
     func call(arguments: Arguments) async throws -> String {
-        let result = CarToolbox.weather(at: arguments.at)
-        onEvent("weather(at: \"\(arguments.at)\")", result)
-        return result
+        // TODO 4b — return `CarToolbox.weather(at: arguments.at)`, and call
+        //   `onEvent("weather(at: \"\(arguments.at)\")", result)` first so the hop
+        //   shows up in the trace (see ChargingStationsTool / VehicleRangeTool).
+        onEvent("weather(at: \"\(arguments.at)\")", "TODO 4b — not implemented")
+        return "TODO 4b — WeatherTool.call not implemented"
     }
+    #endif
 }
 
 @available(iOS 26.0, macOS 26.0, *)

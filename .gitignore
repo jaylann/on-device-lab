@@ -21,3 +21,7 @@ bench/cloud_results.json
 # macOS
 .DS_Store
 .build-dd/
+
+# benchmark artifacts (transient)
+bench/afm_bench
+bench/*-rerun.json

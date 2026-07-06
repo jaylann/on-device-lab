@@ -97,21 +97,32 @@ enum TicketValidator {
     }
 
     /// Full pipeline for raw model text: strip → decode → presence check.
+    ///
+    /// ── MILESTONE 3a · EXTRACT IT (open-weight path) ─────────────────────────
+    /// This is the whole open-weight philosophy: the model returns *text*, and
+    /// YOU turn it into typed data and check it. `strip()` (above) already peels
+    /// off `<think>` blocks / fences and isolates the outermost `{…}`. Your job:
+    /// decode that into `InvoiceFields` and report which fields are missing.
+    ///
+    /// Until you do, the Extract tab shows "validation failed" for every
+    /// open-weight run — that's the point. Stuck? Build the "OnDeviceLab
+    /// (Solution)" scheme (reference lives in Solutions/Solutions.swift).
+    /// ─────────────────────────────────────────────────────────────────────────
+    #if !SOLUTION
     static func validate(rawOutput: String) -> ValidationResult {
         let cleaned = strip(rawOutput)
         guard let data = cleaned.data(using: .utf8), !cleaned.isEmpty else {
             return ValidationResult(fields: nil, missing: [], raw: rawOutput,
                                     errorDescription: "No JSON object found in the output")
         }
-        do {
-            let fields = try JSONDecoder().decode(InvoiceFields.self, from: data)
-            return ValidationResult(fields: fields, missing: missingFields(in: fields),
-                                    raw: rawOutput, errorDescription: nil)
-        } catch {
-            return ValidationResult(fields: nil, missing: [], raw: rawOutput,
-                                    errorDescription: error.localizedDescription)
-        }
+        // TODO 3a — decode `data` into `InvoiceFields` and return a ValidationResult:
+        //   • on success: pass the decoded fields + `missingFields(in:)`, errorDescription nil
+        //   • on a decode throw: fields nil, put `error.localizedDescription` in errorDescription
+        _ = data
+        return ValidationResult(fields: nil, missing: [], raw: rawOutput,
+                                errorDescription: "TODO 3a — parse the model's JSON")
     }
+    #endif
 
     /// For fields that arrived already-typed (the AFM path).
     static func validate(fields: InvoiceFields, raw: String) -> ValidationResult {
@@ -153,20 +164,25 @@ struct GenerableInvoice {
 /// Availability-safe facade so the view never touches FoundationModels types.
 @MainActor
 enum AFMExtractor {
+    /// ── MILESTONE 3b · EXTRACT IT (Apple FM path) ───────────────────────────
+    /// The Apple philosophy is the mirror image of 3a: instead of parsing text
+    /// defensively, you hand the runtime a `@Generable` *type* (`GenerableInvoice`,
+    /// defined above) and it constrained-decodes straight into it — malformed
+    /// JSON is impossible; the only failure mode is a refusal. Your job is the one
+    /// call that does this. Runs only on macOS 26 + Apple Intelligence, but you
+    /// write it on any Xcode 26. Stuck? Build the "OnDeviceLab (Solution)" scheme
+    /// (reference lives in Solutions/Solutions.swift).
+    /// ─────────────────────────────────────────────────────────────────────────
+    #if !SOLUTION
     static func extractInvoice(prompt: String) async throws -> InvoiceFields {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, macOS 26.0, *) {
-            let session = LanguageModelSession()
-            do {
-                let response = try await session.respond(to: prompt, generating: GenerableInvoice.self)
-                return response.content.asInvoiceFields
-            } catch let error as LanguageModelSession.GenerationError {
-                throw EngineError(generationError: error)
-            }
-        }
-        #endif
-        throw EngineError.other("Needs macOS 26 / iOS 26 + Apple Intelligence")
+        // TODO 3b — with Apple's FoundationModels, create a `LanguageModelSession`,
+        //   call `respond(to: prompt, generating: GenerableInvoice.self)`, and return
+        //   `.content.asInvoiceFields`. No JSONDecoder — constrained decoding does it.
+        //   (Runs on macOS 26 + Apple Intelligence; `GenerableInvoice` is defined above.)
+        _ = prompt
+        throw EngineError.other("TODO 3b — respond(generating:)")
     }
+    #endif
 }
 
 #if canImport(FoundationModels)
