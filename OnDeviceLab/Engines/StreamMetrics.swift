@@ -11,6 +11,7 @@ final class StreamRun {
         case guardrail
         case contextOverflow
         case rateLimited
+        case unsupportedLanguage
         case other(String)
     }
 
@@ -30,6 +31,9 @@ final class StreamRun {
 
     /// Drain a stream to completion, stamping TTFT on the first delta and
     /// updating throughput live (Σ token estimates / elapsed since first delta).
+    /// The first delta's tokens are excluded from the decode rate: AFM's first
+    /// cumulative snapshot can carry many tokens' worth of text while MLX's is
+    /// ~1 token, so counting it would inflate the two sides unequally.
     func consume(_ stream: AsyncThrowingStream<StreamDelta, Error>) async {
         output = ""
         ttftMs = 0
@@ -41,15 +45,16 @@ final class StreamRun {
         var tokens: Double = 0
         do {
             for try await delta in stream {
-                if first == nil {
+                if let first {
+                    tokens += delta.tokenEstimate
+                    let dt = Date().timeIntervalSince(first)
+                    if dt > 0 { tokPerSec = tokens / dt }
+                } else {
                     let now = Date()
                     first = now
                     ttftMs = now.timeIntervalSince(start) * 1000
                 }
                 output += delta.text
-                tokens += delta.tokenEstimate
-                let dt = Date().timeIntervalSince(first ?? start)
-                if dt > 0 { tokPerSec = tokens / dt }
             }
             phase = .done
         } catch let error as EngineError {
@@ -67,6 +72,7 @@ extension StreamRun.FailReason {
         case .guardrail: self = .guardrail
         case .contextOverflow: self = .contextOverflow
         case .rateLimited: self = .rateLimited
+        case .unsupportedLanguage: self = .unsupportedLanguage
         case .other(let message): self = .other(message)
         }
     }

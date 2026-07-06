@@ -12,12 +12,14 @@ final class AFMEngine: InferenceEngine {
 
     let spec = EngineSpec(
         id: "afm",
-        displayName: "Apple Foundation Model",
+        displayName: "Apple FM · ~3B · 2-bit",
         badge: "AFM",
         contextWindow: 4_096,
         tokenCountIsEstimated: true)
 
-    /// Kept alive after `prepare()` so the prewarmed state isn't dropped.
+    /// Prewarmed by `prepare()` and consumed by the next `stream()` call, so AFM
+    /// starts warm — the same footing as an MLX lane streaming from its
+    /// already-loaded container.
     private var prewarmedSession: LanguageModelSession?
 
     // MARK: InferenceEngine
@@ -58,9 +60,22 @@ final class AFMEngine: InferenceEngine {
     }
 
     func stream(prompt: String, system: String?, maxTokens: Int) -> AsyncThrowingStream<StreamDelta, Error> {
-        // Fresh session per call so runs don't share history, matching MLXEngine.
-        let session = system.map { LanguageModelSession(instructions: $0) } ?? LanguageModelSession()
-        let options = GenerationOptions(maximumResponseTokens: maxTokens)
+        // Runs stay history-free (every call takes a session that has never served
+        // a request) but never cold: consume the prewarmed session and immediately
+        // replace it with a freshly prewarmed one for the next run.
+        let session: LanguageModelSession
+        if let system {
+            session = LanguageModelSession(instructions: system)
+        } else if let warmed = prewarmedSession {
+            session = warmed
+            let fresh = LanguageModelSession()
+            fresh.prewarm()
+            prewarmedSession = fresh
+        } else {
+            session = LanguageModelSession()
+        }
+        // Same sampling as the MLX lanes (`ModelCatalog.chatSession`): temperature 0.3.
+        let options = GenerationOptions(temperature: 0.3, maximumResponseTokens: maxTokens)
 
         return AsyncThrowingStream { continuation in
             let task = Task { @MainActor in
@@ -76,7 +91,7 @@ final class AFMEngine: InferenceEngine {
                     }
                     continuation.finish()
                 } catch let error as LanguageModelSession.GenerationError {
-                    continuation.finish(throwing: EngineError(error))
+                    continuation.finish(throwing: EngineError(generationError: error))
                 } catch {
                     continuation.finish(throwing: EngineError.other(error.localizedDescription))
                 }
@@ -90,10 +105,11 @@ final class AFMEngine: InferenceEngine {
     }
 }
 
-private extension EngineError {
-    /// Map the system model's failure modes onto the shared typed surface.
+extension EngineError {
+    /// The one mapping from the system model's failure modes onto the shared
+    /// typed surface — used by every AFM code path (arena, extract, tools).
     @available(iOS 26.0, macOS 26.0, *)
-    init(_ error: LanguageModelSession.GenerationError) {
+    init(generationError error: LanguageModelSession.GenerationError) {
         switch error {
         case .exceededContextWindowSize:
             self = .contextOverflow
@@ -101,6 +117,8 @@ private extension EngineError {
             self = .guardrail
         case .rateLimited:
             self = .rateLimited
+        case .unsupportedLanguageOrLocale:
+            self = .unsupportedLanguage
         default:
             self = .other(error.localizedDescription)
         }

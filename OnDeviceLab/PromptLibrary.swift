@@ -6,19 +6,32 @@ enum PromptLibrary {
 
     static let chatDefault = "In two sentences: why does an app run a language model on the phone instead of in the cloud?"
 
-    /// The benchmark prompt. Long enough that prompt-eval (the TTFT cost) is realistic.
+    /// Everything is English on purpose: AFM throws `unsupportedLanguageOrLocale`
+    /// when a prompt's detected language isn't in the device's Apple Intelligence
+    /// language set, and a demo must not depend on the demo Mac's settings.
+    /// The extraction prompt is on-theme: the exact shape of work NeatPass does.
     static let extraction = """
     You extract structured data from event tickets. Read the raw text and return ONLY a JSON object \
     with keys: type, title, venue, city, date, seat. If a field is missing use null. Never invent a \
     value that is not present in the text.
 
     RAW TICKET TEXT:
-    Die Fantastischen Vier - Live 2026  ||  Olympiahalle Muenchen, Spiridon-Louis-Ring 21
-    Einlass 19:00  Beginn 20:00   12.09.2026   Block C  Reihe 14  Platz 7
-    Order #DE-99213  ticket-id 8841200391  price 89,90 EUR incl. VAT
-    Bitte halten Sie diesen QR-Code am Einlass bereit. Kein Wiederverkauf.
+    Die Fantastischen Vier - Live 2026  ||  Olympiahalle Munich, Spiridon-Louis-Ring 21
+    Doors 19:00  Show 20:00   12.09.2026   Block C  Row 14  Seat 7
+    Order #DE-99213  ticket-id 8841200391  price 89.90 EUR incl. VAT
+    Please have this QR code ready at the entrance. No resale.
 
     Return the JSON now:
+    """
+
+    /// Mirrors `bench/bench.py` DEFAULT_PROMPT verbatim so in-app benchmark
+    /// numbers are comparable to the harness behind the deck's Round-1 chart.
+    static let benchmark = """
+    You are an in-car voice assistant. A passenger asks how regenerative braking \
+    works and how it affects the car's range in city versus highway driving. Answer in clear, friendly \
+    prose of at least 500 words. Cover the physics of turning motion back into charge, what the driver \
+    feels through the pedal, when it helps most, when it barely helps, and its limits in cold weather \
+    and at high speed.
     """
 
     /// M3 stress: a long prompt to watch the context window fill.
@@ -30,23 +43,51 @@ enum PromptLibrary {
     /// Arena preset: dashboard-glance arithmetic — the kind of question a driver actually asks the car.
     static let carRange = "How far can I drive with 61% battery if my car averages 18.4 kWh/100km and has an 82 kWh pack? Give a short answer for a driver glancing at the dashboard."
 
-    /// Arena preset: the extraction shape again, but automotive — a messy charging receipt.
-    static let chargingInvoice = """
-    LADEBELEG / CHARGING RECEIPT  --  IONITY GmbH
-    Standort: IONITY Stuttgart-Zuffenhausen, Porschestr. 1, 70435 Stuttgart
-    Ladevorgang gestartet 2026-07-14T18:42:07+02:00
-    Energie geladen: 43,7 kWh   Ladedauer: 31,2 min   Tarif: 0,79 EUR/kWh
-    Gesamtbetrag: 34,52 EUR inkl. 19% MwSt.
-    Session-ID: IONITY-DE-2207-884131   Vielen Dank fuer Ihre Ladung. Gute Fahrt!
+    /// The instruction shared by every charging-receipt preset.
+    private static let invoiceInstruction = """
 
     Read the receipt above and return ONLY a JSON object with keys: provider, location, \
     kwh, duration_min, total_eur, session_id. If a field is missing use null. Never invent \
     a value that is not present in the text.
     """
 
+    /// Extract preset: the extraction shape again, but automotive — a clean charging receipt.
+    static let chargingInvoice = """
+    CHARGING RECEIPT  --  IONITY GmbH
+    Location: IONITY Stuttgart-Zuffenhausen, Porschestr. 1, 70435 Stuttgart
+    Session started 2026-07-14T18:42:07+02:00
+    Energy delivered: 43.7 kWh   Charging time: 31.2 min   Tariff: 0.79 EUR/kWh
+    Total: 34.52 EUR incl. 19% VAT
+    Session ID: IONITY-DE-2207-884131   Thank you for charging. Safe travels!
+    """ + invoiceInstruction
+
+    /// Extract preset: different provider and values — proves the schema, not the memorized receipt.
+    static let chargingInvoiceAlt = """
+    CHARGING RECEIPT  --  EnBW mobility+ AG
+    Location: EnBW HyperNetz Pragsattel, Loewentorstr. 64, 70376 Stuttgart
+    Session started 2026-07-02T08:17:44+02:00
+    Energy delivered: 27.9 kWh   Charging time: 18.6 min   Tariff: 0.61 EUR/kWh
+    Total: 17.02 EUR incl. 19% VAT
+    Session ID: ENBW-DE-0702-113058   Thank you for charging.
+    """ + invoiceInstruction
+
+    /// Extract preset: OCR-grade mess — reordered lines, noise, broken casing.
+    /// Some engines will drop a field here; a red dot on stage is the demo.
+    static let chargingInvoiceScan = """
+    tOTAL 58 . 41 EUR incl.19%VAT
+    fastned deutschland gmbh & co. kg -- CHARGlNG RECElPT
+    sess. id FASTNED-DE-1119-002764
+    energy de1ivered 61.5kWh | charging time 44 . 8min
+    >>> loc: Fastned Kamener Kreuz Nord, A1/A2, 59174 Kamen <<<
+    started 2026-06-19T21:03:12+02:00 *** thank you ***
+    """ + invoiceInstruction
+
     /// Context-window race: a synthetic trip-log of `repeats` timestamped entries
-    /// (~35 tokens each — same idea as `longContext`, but sized on demand), ending
-    /// with a needle question the model can only answer by reading the whole log.
+    /// (~`tokensPerRepeat` tokens each — same idea as `longContext`, but sized on
+    /// demand), ending with a needle question the model can only answer by
+    /// reading the whole log.
+    static let tokensPerRepeat = 35
+
     static func contextBlock(repeats: Int) -> String {
         let locations = ["A8 near Ulm", "A81 near Sindelfingen", "B27 near Zuffenhausen", "A5 near Karlsruhe"]
         var lines: [String] = []

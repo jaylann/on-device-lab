@@ -74,55 +74,13 @@ struct ValidationResult {
     var passed: Bool { fields != nil && missing.isEmpty && errorDescription == nil }
 }
 
-/// The validation half of the open-weight pipeline: strip reasoning noise,
-/// decode, check that every field actually arrived.
+/// The validation half of the pipeline: both engines produce typed fields
+/// (grammar lock / @Generable), so validation is a presence check per field.
 enum TicketValidator {
-
-    /// Remove `<think>…</think>` blocks and markdown fences, then cut down to
-    /// the outermost JSON object.
-    static func strip(_ text: String) -> String {
-        var s = text.replacingOccurrences(
-            of: "<think>[\\s\\S]*?</think>", with: "", options: .regularExpression)
-        s = s.replacingOccurrences(
-            of: "```[a-zA-Z]*", with: "", options: .regularExpression)
-        s = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let start = s.firstIndex(of: "{"), let end = s.lastIndex(of: "}"), start < end {
-            s = String(s[start...end])
-        }
-        return s
-    }
 
     static func missingFields(in fields: InvoiceFields) -> [String] {
         fields.fieldPairs.filter { $0.value == nil }.map { $0.name }
     }
-
-    /// Full pipeline for raw model text: strip → decode → presence check.
-    ///
-    /// ── MILESTONE 3a · EXTRACT IT (open-weight path) ─────────────────────────
-    /// This is the whole open-weight philosophy: the model returns *text*, and
-    /// YOU turn it into typed data and check it. `strip()` (above) already peels
-    /// off `<think>` blocks / fences and isolates the outermost `{…}`. Your job:
-    /// decode that into `InvoiceFields` and report which fields are missing.
-    ///
-    /// Until you do, the Extract tab shows "validation failed" for every
-    /// open-weight run — that's the point. Stuck? Build the "OnDeviceLab
-    /// (Solution)" scheme (reference lives in Solutions/Solutions.swift).
-    /// ─────────────────────────────────────────────────────────────────────────
-    #if !SOLUTION
-    static func validate(rawOutput: String) -> ValidationResult {
-        let cleaned = strip(rawOutput)
-        guard let data = cleaned.data(using: .utf8), !cleaned.isEmpty else {
-            return ValidationResult(fields: nil, missing: [], raw: rawOutput,
-                                    errorDescription: "No JSON object found in the output")
-        }
-        // TODO 3a — decode `data` into `InvoiceFields` and return a ValidationResult:
-        //   • on success: pass the decoded fields + `missingFields(in:)`, errorDescription nil
-        //   • on a decode throw: fields nil, put `error.localizedDescription` in errorDescription
-        _ = data
-        return ValidationResult(fields: nil, missing: [], raw: rawOutput,
-                                errorDescription: "TODO 3a — parse the model's JSON")
-    }
-    #endif
 
     /// For fields that arrived already-typed (the AFM path).
     static func validate(fields: InvoiceFields, raw: String) -> ValidationResult {
@@ -184,18 +142,3 @@ enum AFMExtractor {
     }
     #endif
 }
-
-#if canImport(FoundationModels)
-extension EngineError {
-    /// Same mapping as `AFMEngine` (whose version is private to that file).
-    @available(iOS 26.0, macOS 26.0, *)
-    init(generationError error: LanguageModelSession.GenerationError) {
-        switch error {
-        case .exceededContextWindowSize: self = .contextOverflow
-        case .guardrailViolation: self = .guardrail
-        case .rateLimited: self = .rateLimited
-        default: self = .other(error.localizedDescription)
-        }
-    }
-}
-#endif

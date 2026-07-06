@@ -34,19 +34,14 @@ DEFAULT_MODELS = [
     "mlx-community/Qwen3-1.7B-4bit",
 ]
 
-# A realistic, on-theme prompt: extract structured fields from a messy ticket blob.
-# Long enough that prompt-eval (the TTFT cost) is meaningful, not a toy.
-DEFAULT_PROMPT = """You extract structured data from event tickets. Read the raw text below and \
-return ONLY a JSON object with keys: type, title, venue, city, date, seat. If a field is missing, \
-use null. Do not invent values that are not present in the text.
-
-RAW TICKET TEXT:
-Die Fantastischen Vier - Live 2026  ||  Olympiahalle Muenchen, Spiridon-Louis-Ring 21
-Einlass 19:00  Beginn 20:00   12.09.2026   Block C  Reihe 14  Platz 7
-Order #DE-99213birra  ticket-id 8841200391  price 89,90 EUR incl. VAT
-Bitte halten Sie diesen QR-Code am Einlass bereit. Kein Wiederverkauf.
-
-Return the JSON now:"""
+# A realistic, on-theme long-form generation prompt: an in-car assistant answering a passenger.
+# Prose output (≥500 tok) gives a stable steady-state decode window and keeps the AFM chars/4
+# estimate honest (JSON output is token-dense and makes chars/4 undercount).
+DEFAULT_PROMPT = """You are an in-car voice assistant. A passenger asks how regenerative braking \
+works and how it affects the car's range in city versus highway driving. Answer in clear, friendly \
+prose of at least 500 words. Cover the physics of turning motion back into charge, what the driver \
+feels through the pedal, when it helps most, when it barely helps, and its limits in cold weather \
+and at high speed."""
 
 
 def mac_device_label() -> str:
@@ -206,7 +201,7 @@ def main() -> int:
     ap.add_argument("--models", nargs="+", default=DEFAULT_MODELS)
     ap.add_argument("--runs", type=int, default=5)
     ap.add_argument("--warmup", type=int, default=1)
-    ap.add_argument("--max-tokens", type=int, default=200)
+    ap.add_argument("--max-tokens", type=int, default=600)
     ap.add_argument("--prompt", default=DEFAULT_PROMPT)
     ap.add_argument("--out", default="results.json")
     args = ap.parse_args()

@@ -21,6 +21,21 @@ struct LabRootView: View {
 
 // MARK: - Shared demo chrome
 
+/// One-line subtitle under each tab's title: what is being compared and what
+/// to watch for — so a tab explains itself even to someone who missed the slide.
+struct TabExplainer: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 /// Failure chip copy + color, shared by every demo tab. Failures render as
 /// chips in place — never alerts — because on stage a refusal IS the demo.
 extension StreamRun.FailReason {
@@ -29,13 +44,14 @@ extension StreamRun.FailReason {
         case .guardrail: return "AFM safety block"
         case .contextOverflow: return "context limit"
         case .rateLimited: return "rate limited"
+        case .unsupportedLanguage: return "AFM: unsupported language/locale"
         case .other(let message): return message
         }
     }
 
     var chipColor: Color {
         switch self {
-        case .guardrail, .rateLimited: return .orange
+        case .guardrail, .rateLimited, .unsupportedLanguage: return .orange
         case .contextOverflow, .other: return .red
         }
     }

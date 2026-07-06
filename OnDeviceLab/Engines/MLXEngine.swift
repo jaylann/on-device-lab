@@ -1,5 +1,7 @@
 import Foundation
 import MLXLMCommon
+import MLXStructured
+import JSONSchema
 
 /// `InferenceEngine` adapter over the MLX stack. Reuses `ModelCatalog.loadContainer`
 /// and `ModelCatalog.chatSession` so behavior matches the Chat tab exactly — same
@@ -63,5 +65,35 @@ final class MLXEngine: InferenceEngine {
 
     func unload() {
         container = nil
+    }
+
+    // MARK: Grammar-locked structured output (mlx-swift-structured / XGrammar)
+
+    /// The open-weight equivalent of Apple's `@Generable`: XGrammar masks the logits so
+    /// only tokens that keep the output valid against `schema` can be sampled — malformed
+    /// JSON is impossible — and the result decodes straight into `T`. Used by the Extract
+    /// tab (invoice fields) and the Tools tab (constrained tool calls).
+    func structured<T: Decodable & Sendable>(
+        prompt: String, system: String? = nil, schema: JSONSchema, as type: T.Type, maxTokens: Int
+    ) async throws -> T {
+        guard let container else {
+            throw EngineError.other("Model not loaded — call prepare() first")
+        }
+        var params = GenerateParameters()
+        params.temperature = 0.3
+        params.maxTokens = maxTokens
+        let fullPrompt = system.map { "\($0)\n\n\(prompt)" } ?? prompt
+        do {
+            return try await container.perform { context in
+                let input = try await context.processor.prepare(input: UserInput(prompt: fullPrompt))
+                return try await MLXStructured.generate(
+                    input: input, parameters: params, context: context,
+                    schema: schema, generating: T.self)
+            }
+        } catch let error as EngineError {
+            throw error
+        } catch {
+            throw EngineError.other(error.localizedDescription)
+        }
     }
 }

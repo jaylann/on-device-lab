@@ -77,6 +77,24 @@ extension View {
         modifier(AmbientGradientBackground(tint: tint))
     }
 
+    /// The one background every screen uses: ambient gradient, and on macOS the
+    /// window-toolbar background hidden so the gradient runs under the title bar
+    /// (identical on every tab instead of only where a ScrollView happened to
+    /// reach the top edge).
+    @ViewBuilder
+    func labScreenBackground(tint: Color = DS.accent) -> some View {
+        #if os(macOS)
+        if #available(macOS 15.0, *) {
+            ambientGradientBackground(tint: tint)
+                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        } else {
+            ambientGradientBackground(tint: tint)
+        }
+        #else
+        ambientGradientBackground(tint: tint)
+        #endif
+    }
+
     func glassCard(radius: CGFloat = DS.Radius.card, padding: CGFloat = DS.Space.gutter) -> some View {
         modifier(GlassCard(radius: radius, padding: padding))
     }
@@ -204,6 +222,11 @@ struct InstrumentStat: View {
                     .kerning(0.8)
                     .textCase(.uppercase)
                     .foregroundStyle(.secondary)
+                if highlighted {
+                    Image(systemName: "laurel.trailing")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(DS.accent)
+                }
             }
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(value)

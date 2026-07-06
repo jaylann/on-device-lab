@@ -16,12 +16,18 @@ struct ArenaView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: DS.Space.section) {
+                TabExplainer("Same prompt, every engine, one stopwatch — TTFT and tok/s, run sequentially so each lane gets the GPU to itself.")
+                if runner.parallel {
+                    StatusChip(text: "race mode — lanes contend for the GPU, numbers not comparable",
+                               color: .orange, icon: "exclamationmark.triangle.fill")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 lanes
                 presetRow
                 composer
             }
             .padding(DS.Space.gutter)
-            .ambientGradientBackground(tint: DS.accent)
+            .labScreenBackground(tint: DS.accent)
             .navigationTitle("Arena")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -74,20 +80,20 @@ struct ArenaView: View {
         }
     }
 
-    /// Parallel/Sequential lives in the toolbar as quiet chrome — a labelled
+    /// Sequential/Race lives in the toolbar as quiet chrome — a labelled
     /// menu, not a raw segmented picker.
     private var modeMenu: some View {
         Menu {
             Picker("Mode", selection: $runner.parallel) {
-                Label("Parallel — all lanes at once", systemImage: "square.split.2x1").tag(true)
-                Label("Sequential — one lane at a time", systemImage: "square.stack").tag(false)
+                Label("Sequential — one lane at a time (fair numbers)", systemImage: "square.stack").tag(false)
+                Label("Race mode — all lanes at once (contended, not comparable)", systemImage: "square.split.2x1").tag(true)
             }
         } label: {
-            Label(runner.parallel ? "Parallel" : "Sequential",
+            Label(runner.parallel ? "Race mode" : "Sequential",
                   systemImage: runner.parallel ? "square.split.2x1" : "square.stack")
         }
         .disabled(runner.isRunning)
-        .help("Sequential unloads each open-weight model before the next lane runs — the memory-safe mode for iPhone.")
+        .help("Sequential gives every lane the GPU alone (and unloads each open-weight model before the next) — the fair mode. Race mode streams all lanes at once for the visual, but they contend for the GPU.")
     }
 
     private var composer: some View {

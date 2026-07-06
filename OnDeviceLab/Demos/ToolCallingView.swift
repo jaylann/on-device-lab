@@ -1,9 +1,9 @@
 import SwiftUI
 import Observation
 
-/// The Tools tab: same driver question, two very different call loops. AFM's
-/// runtime manages the tools itself; the open-weight model follows a JSON
-/// protocol we invented in a system prompt — every hop lands in the trace.
+/// The Tools tab: same driver question, same three tools, two call loops. AFM's
+/// runtime manages the tools itself; the open-weight model runs a grammar-locked
+/// JSON loop — every hop lands in the trace either way.
 struct ToolCallingView: View {
     @State private var runner = ToolCallRunner()
     @State private var promptText = "I'm at 20% battery near Stuttgart — where should I charge?"
@@ -11,12 +11,13 @@ struct ToolCallingView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: DS.Space.section) {
+                TabExplainer("One question, real tool calls, the same three tools — AFM's native Tool loop vs a grammar-locked JSON loop, every hop in the trace.")
                 engineChips
                 traceCard
                 composer
             }
             .padding(DS.Space.gutter)
-            .ambientGradientBackground(tint: DS.accent)
+            .labScreenBackground(tint: DS.accent)
             .navigationTitle("Tool Calling")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -181,8 +182,8 @@ final class ToolCallRunner {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .afm: return "Apple FM"
-            case .qwen17B: return "Qwen3 1.7B"
+            case .afm: return "Apple FM · ~3B · 2-bit"
+            case .qwen17B: return ModelCatalog.qwen17B.displayName
             }
         }
     }
@@ -192,7 +193,11 @@ final class ToolCallRunner {
     var isRunning = false
     var loadProgress: Double?
 
-    private let mlx = MLXEngine(model: ModelCatalog.qwen17B, contextWindow: 32_768)
+    /// Both engines register the same toolbox; `final_answer` is the grammar
+    /// lock's loop terminator, not a tool.
+    private static let toolCount = GrammarLock.toolNames.count - 1
+
+    private let mlx = EngineRegistry.mlxEngine(for: ModelCatalog.qwen17B)
 
     func run(prompt: String) {
         guard !isRunning else { return }
@@ -212,7 +217,8 @@ final class ToolCallRunner {
     // MARK: AFM — the runtime drives the loop, tools report into the trace
 
     private func runAFM(prompt: String) async {
-        append(.model, "Apple FM", "session with 3 registered tools", ok: true)
+        append(.model, "Apple FM · ~3B · 2-bit",
+               "session · \(Self.toolCount) registered tools · native Tool loop", ok: true)
         do {
             let answer = try await AFMToolFacade.answer(prompt: prompt) { call, result in
                 Task { @MainActor in
@@ -228,8 +234,13 @@ final class ToolCallRunner {
         }
     }
 
-    // MARK: MLX — hand-rolled JSON protocol, max 2 hops
+    // MARK: MLX — grammar-locked tool loop (mlx-swift-structured)
 
+    /// Each turn is a schema-constrained tool call: the tool name can only be one of the
+    /// allowed values, so the open model can never emit a bad name or a non-JSON reply —
+    /// the same guarantee AFM's runtime gives. Loops until `final_answer`, forcing a
+    /// grounded answer if the model repeats a call or hits the hop cap. This is the fair
+    /// mirror of AFM's native loop (and matches the measured re-run in the capability eval).
     private func runMLX(prompt: String) async {
         loadProgress = 0
         do {
@@ -241,44 +252,57 @@ final class ToolCallRunner {
             return
         }
         loadProgress = nil
+        append(.model, ModelCatalog.qwen17B.displayName,
+               "session · \(Self.toolCount) registered tools · grammar-locked JSON loop", ok: true)
 
         var transcript = prompt
-        for hop in 0..<2 {
-            append(.model, "Qwen3 1.7B · turn \(hop + 1)", "", ok: true)
-            let reply: String
+        var called = Set<String>()
+        for hop in 0..<4 {
+            append(.model, "turn \(hop + 1)", "grammar-locked tool call", ok: true)
+            let call: ToolCall
             do {
-                reply = try await collect(prompt: transcript)
+                call = try await mlx.structured(
+                    prompt: transcript, system: GrammarLock.toolSystem,
+                    schema: GrammarLock.toolCallSchema, as: ToolCall.self, maxTokens: 200)
             } catch {
                 append(.failure, "generation failed", error.localizedDescription, ok: false)
                 return
             }
-            guard let call = MLXToolProtocol.parseToolCall(reply) else {
-                // No JSON — the model is answering in prose. Done.
-                append(.answer, "answer", reply.trimmingCharacters(in: .whitespacesAndNewlines), ok: true)
+            if call.tool == "final_answer" {
+                append(.answer, "answer",
+                       (call.answer ?? "").trimmingCharacters(in: .whitespacesAndNewlines), ok: true)
                 return
             }
-            let argsText = (try? JSONSerialization.data(withJSONObject: call.arguments))
-                .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-            guard let result = CarToolbox.dispatch(name: call.name, arguments: call.arguments) else {
-                append(.toolCall, "\(call.name)(\(argsText))", "unknown tool — not in the toolbox", ok: false)
-                transcript += "\n\n\(reply)\nTOOL RESULT: error — unknown tool \"\(call.name)\". "
-                    + "Answer the driver with what you know."
-                continue
+            var args: [String: Any] = [:]
+            if let near = call.near { args["near"] = near }
+            if let at = call.at { args["at"] = at }
+            let argsText = args.map { "\($0): \"\($1)\"" }.joined(separator: ", ")
+            guard let result = CarToolbox.dispatch(name: call.tool, arguments: args) else {
+                append(.toolCall, "\(call.tool)(\(argsText))", "unknown tool — not in the toolbox", ok: false)
+                return
             }
-            append(.toolCall, "\(call.name)(\(argsText))", "", ok: true)
+            append(.toolCall, "\(call.tool)(\(argsText))", "", ok: true)
             append(.toolResult, "result", result, ok: true)
-            transcript += "\n\n\(reply)\nTOOL RESULT: \(result)\n\n"
-                + "Using the tool result above, answer the driver's question in one or two short sentences (no JSON)."
+            transcript += "\n\nTOOL RESULT [\(call.tool)]: \(result)"
+
+            let sig = "\(call.tool)|\(call.near ?? "")|\(call.at ?? "")"
+            if called.contains(sig) { await forceFinalAnswer(transcript); return }
+            called.insert(sig)
         }
-        append(.failure, "max hops reached", "still emitting tool calls after 2 turns", ok: false)
+        await forceFinalAnswer(transcript)
     }
 
-    private func collect(prompt: String) async throws -> String {
-        var text = ""
-        for try await delta in mlx.stream(prompt: prompt, system: MLXToolProtocol.systemPrompt, maxTokens: 384) {
-            text += delta.text
+    /// Ground a final answer once the model loops or runs out of hops (isolates grounding
+    /// from the small-model self-termination weakness — same trick as the eval harness).
+    private func forceFinalAnswer(_ transcript: String) async {
+        if let final = try? await mlx.structured(
+            prompt: transcript + "\n\nNow reply with the final grounded answer for the driver.",
+            system: GrammarLock.toolSystem, schema: GrammarLock.finalAnswerSchema,
+            as: FinalAnswer.self, maxTokens: 200) {
+            append(.answer, "answer", final.answer.trimmingCharacters(in: .whitespacesAndNewlines), ok: true)
+        } else {
+            append(.failure, "no final answer", "model did not produce a grounded reply", ok: false)
         }
-        return text
     }
 
     private func append(_ kind: ToolTraceStep.Kind, _ title: String, _ detail: String, ok: Bool) {

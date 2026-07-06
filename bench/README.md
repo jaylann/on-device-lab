@@ -40,21 +40,12 @@ no token counts, so tok/s is **estimated as chars/4** (always present it with a 
 TTFT = first streamed snapshot.
 
 ## Put the numbers on the slide
-```bash
-python apply_bench.py --deck "../../deck/Tech Day Deck.html" \
-    --device results.json \
-    --device iphone-results.json \    # exported from the iOS app (AirDrop), optional
-    --cloud cloud_results.json        # optional
-```
-> **Deck v2 note (05.07.2026):** `apply_bench.py` targets the old slide-21 *table*. The
-> current deck renders HTML bar charts instead, update those by editing the `bar-row`
-> values/widths in the deck HTML directly (see `deck/scratchpad.md` for the scales).
-
-The iOS app exports the identical JSON schema, so phone and Mac runs feed the same numbers.
+The deck renders HTML bar charts — update them by editing the `bar-row` values/widths in the
+deck HTML directly (see `deck/scratchpad.md` for the scales). The iOS app exports the identical
+JSON schema, so phone and Mac runs feed the same numbers.
 
 ## Files
 - `bench.py`, on-device harness (warmup, N runs, p50/p99, JSON + Markdown).
 - `afm_bench.swift`, Apple Foundation Models harness (macOS 26+, chars/4 ≈tok/s).
 - `cloud_probe.py`, streaming TTFT/throughput probe (OpenAI-compatible + Anthropic).
-- `apply_bench.py`, patches the *old* slide-21 table (superseded by the v2 chart deck).
 - `run.sh`, venv bootstrap + on-device (+ optional cloud) in one command.

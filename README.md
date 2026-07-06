@@ -57,25 +57,22 @@ Load Qwen3 0.6B, prompt it, watch the stream. Done above. No code.
 **Two lines are not** — `TODO 1` (stamp `firstTokenTime = Date()` on the first chunk) and
 `TODO 2` (increment `tokenCount` per chunk). Until then the **Benchmark** sheet reports `0 tok/s`.
 Fill them, hit **Run suite**, shout your numbers — we collect them across M1 → M4 chips. (Export
-JSON matches the Python harness schema, so `bench/apply_bench.py` drops them onto the slide.)
+JSON matches the Python harness schema in `bench/`.)
 
 ### M3 · Extract it — round 2 (structured output)
 `OnDeviceLab/Demos/TicketExtraction.swift`. Pull six fields out of a messy charging receipt.
-- **Open-weight** — `TODO 3a` in `TicketValidator.validate(rawOutput:)`: decode the stripped
-  text into `InvoiceFields`, then report `missingFields`. *Generate text, then validate it.*
+- **Open-weight** — done for you: the Extract tab runs a **grammar lock**
+  (mlx-swift-structured / XGrammar constrains decoding to the six-field schema), so malformed
+  JSON is impossible on this side too. *Same guarantee as Apple's, off the shelf.*
 - **Apple FM** — `TODO 3b` in `AFMExtractor.extractInvoice`: one `session.respond(to:,
   generating: GenerableInvoice.self)` call. *Generate straight into a type — bad JSON is impossible.*
 
-The **Extract** tab shows a red "validation failed" chip until 3a is filled.
-
 ### M4 · Tool it — round 3 (tool calling)
 `OnDeviceLab/Demos/CarTools.swift`. Answer a driver's question by calling car tools.
-- **Open-weight** — `TODO 4a` in `MLXToolProtocol.parseToolCall(_:)`: parse `{"tool":…,
-  "arguments":…}` out of the reply. *"Function calling" is just a prompt + your own parser.*
+- **Open-weight** — done for you: a grammar-locked JSON loop (the tool name can only be one of
+  the registered ones), every hop rendered in the trace. *Constrained calls, hand-run loop.*
 - **Apple FM** — `TODO 4b` in `WeatherTool.call(arguments:)`: implement one `Tool` struct
   (the other two are done for reference). *Typed structs; the runtime runs the call loop.*
-
-The **Tools** tab shows the model turn but never fires a tool until 4a is filled.
 
 ### Bonus · Stress it — round 4 (context)
 Switch to **Qwen3 4B** and feel what several billion more params cost. Pick **Long-context prompt**
@@ -97,18 +94,21 @@ CLOUD_API_KEY=sk-... CLOUD_MODEL=gpt-4o-mini ./run.sh
 > **Apple Silicon only.** MLX runs on the Mac GPU via Metal — a generic Linux VM can't run it; an
 > "SSH box" must be an M-series Mac (e.g. a cloud Mac mini).
 
-See [`bench/README.md`](bench/README.md) for the cloud-probe backends and `apply_bench.py`.
+See [`bench/README.md`](bench/README.md) for the cloud-probe backends and the AFM harness.
 
 ---
 
 ## Models & the venue Wi-Fi
-Three 4-bit models, all from `mlx-community`:
+Six models, all 4-bit MLX quants:
 
 | Model | Class | Size |
 |---|---|---|
 | `Qwen3-0.6B-4bit` | extraction | ~0.3 GB |
 | `Qwen3-1.7B-4bit` | robust (the model NeatPass ships) | ~1 GB |
+| `Qwen3.5-2B-MLX-4bit` | arena / 262k context | ~1.4 GB |
 | `Qwen3-4B-4bit` | stress (bonus) | ~2.3 GB |
+| `SmolLM3-3B-4bit` | arena | ~1.7 GB |
+| `SmolLM2-1.7B-Instruct-MLX-4bit` | arena (community quant) | ~1 GB |
 
 **Before the venue — do this at home.** Open the app once on any internet and **Load** each model
 (0.6B, 1.7B, 4B). MLX caches the weights to `~/.cache/huggingface`, so from then on the app runs
@@ -130,8 +130,9 @@ block Hugging Face): grab pre-staged weights from the on-site local share.
   model loading, the tokenizer, and streaming generation.
 - `ModelCatalog` loads a `ModelContainer` (HF id or a local directory).
 - `LLMEngine` streams a chat reply (`ChatSession.streamResponse`).
-- `Benchmark`, `TicketExtraction` and `CarTools` carry the `#if SOLUTION` teaching TODOs
-  (measure / extract / tool-call), each with an open-weight and an Apple FM path.
+- The `#if SOLUTION` teaching TODOs: M2 in `Benchmark.swift` (measure), M3b in
+  `TicketExtraction.swift` (AFM extraction), M4b in `CarTools.swift` (AFM weather tool).
+  The open-weight extract/tools paths are grammar-locked and fully wired.
 
 > **Presenting?** Run the **`OnDeviceLab (Solution)`** scheme so the Extract / Tools / Arena tabs
 > are fully wired for the live demos. Participants use the default scheme (the TODO stubs).

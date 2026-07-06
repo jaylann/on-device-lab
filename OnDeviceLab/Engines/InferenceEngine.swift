@@ -38,6 +38,7 @@ enum EngineError: Error, Equatable {
     case guardrail
     case contextOverflow
     case rateLimited
+    case unsupportedLanguage
     case other(String)
 }
 

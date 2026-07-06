@@ -11,9 +11,19 @@ enum EngineRegistry {
         ModelCatalog.qwen06B.id: 32_768,
         ModelCatalog.qwen17B.id: 32_768,
         ModelCatalog.qwen4B.id: 32_768,
+        ModelCatalog.qwen35.id: 262_144,
         ModelCatalog.smolLM3.id: 65_536,
         ModelCatalog.smolLM2.id: 8_192,
     ]
+
+    static func contextWindow(for model: LabModel) -> Int {
+        contextWindows[model.id] ?? 32_768
+    }
+
+    /// The one way to build an MLX engine — keeps context windows out of the views.
+    static func mlxEngine(for model: LabModel) -> MLXEngine {
+        MLXEngine(model: model, contextWindow: contextWindow(for: model))
+    }
 
     static func makeEngines() -> [any InferenceEngine] {
         var engines: [any InferenceEngine] = []
@@ -23,7 +33,7 @@ enum EngineRegistry {
         }
         #endif
         for model in ModelCatalog.arenaSet {
-            engines.append(MLXEngine(model: model, contextWindow: contextWindows[model.id] ?? 32_768))
+            engines.append(mlxEngine(for: model))
         }
         return engines
     }

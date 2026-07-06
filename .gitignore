@@ -25,3 +25,6 @@ bench/cloud_results.json
 # benchmark artifacts (transient)
 bench/afm_bench
 bench/*-rerun.json
+
+# Python
+__pycache__/

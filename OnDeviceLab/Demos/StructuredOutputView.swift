@@ -6,17 +6,28 @@ import Observation
 /// more often, and a red dot on stage is worth three slides.
 struct StructuredOutputView: View {
     @State private var runner = ExtractionRunner()
+    @State private var selectedPreset = presets[0]
+
+    /// Three receipts, same six-field schema: a clean one, a different provider,
+    /// and an OCR-grade mess where engines are allowed to stumble.
+    private static let presets: [(title: String, prompt: String)] = [
+        ("IONITY (clean)", PromptLibrary.chargingInvoice),
+        ("EnBW (clean)", PromptLibrary.chargingInvoiceAlt),
+        ("Fastned (messy scan)", PromptLibrary.chargingInvoiceScan),
+    ]
 
     var body: some View {
         NavigationStack {
             VStack(spacing: DS.Space.section) {
+                TabExplainer("Same receipt into each engine, out comes typed JSON — Apple FM via @Generable constrained decoding, open weights via an XGrammar grammar lock.")
                 engineChips
+                presetChips
                 resultCard
                 scoreboard
                 runButton
             }
             .padding(DS.Space.gutter)
-            .ambientGradientBackground(tint: DS.accent)
+            .labScreenBackground(tint: DS.accent)
             .navigationTitle("Structured Output")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -34,6 +45,22 @@ struct StructuredOutputView: View {
                         selected: runner.selection == choice,
                         enabled: !runner.isRunning
                     ) { runner.selection = choice }
+                }
+            }
+        }
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var presetChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Space.row) {
+                ForEach(Self.presets, id: \.title) { preset in
+                    EngineChip(
+                        title: preset.title,
+                        selected: selectedPreset.title == preset.title,
+                        enabled: !runner.isRunning
+                    ) { selectedPreset = preset }
                 }
             }
         }
@@ -59,7 +86,7 @@ struct StructuredOutputView: View {
         switch runner.state {
         case .idle: return "Ready"
         case .loading: return "Loading model"
-        case .working: return "Extracting"
+        case .working, .extracting: return "Extracting"
         case .finished(let r): return r.passed ? "Parsed · all fields present" : "Validation failed"
         case .failed: return "Run failed"
         }
@@ -68,8 +95,8 @@ struct StructuredOutputView: View {
     @ViewBuilder private var resultBody: some View {
         switch runner.state {
         case .idle:
-            Text("The charging receipt below goes to the selected engine; the reply is stripped, decoded and checked field by field.\n\n"
-                 + PromptLibrary.chargingInvoice)
+            Text("The charging receipt below goes to the selected engine; the reply is decoded into typed fields and checked one by one.\n\n"
+                 + selectedPreset.prompt)
                 .font(DS.Typo.mono)
                 .foregroundStyle(.secondary)
         case .loading(let progress):
@@ -83,6 +110,12 @@ struct StructuredOutputView: View {
                 .font(DS.Typo.stream)
                 .foregroundStyle(streamed.isEmpty ? .secondary : .primary)
                 .textSelection(.enabled)
+        case .extracting:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Generating into the schema — constrained decoding, no token stream on this path.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
         case .finished(let result):
             validationView(result)
         case .failed(let reason):
@@ -156,7 +189,7 @@ struct StructuredOutputView: View {
                     Text(runner.title(for: choice))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .frame(width: 110, alignment: .leading)
+                        .frame(width: 150, alignment: .leading)
                     if results.isEmpty {
                         Text("no runs yet")
                             .font(.caption2)
@@ -187,7 +220,7 @@ struct StructuredOutputView: View {
     }
 
     private var runButton: some View {
-        Button { runner.run() } label: {
+        Button { runner.run(prompt: selectedPreset.prompt) } label: {
             Text(runner.isRunning ? "Running…" : "Run extraction")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(runner.isRunning ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white))
@@ -215,6 +248,8 @@ final class ExtractionRunner {
         case idle
         case loading(Double)
         case working(streamed: String)
+        /// The AFM path: constrained decoding returns in one piece — no stream to show.
+        case extracting
         case finished(ValidationResult)
         case failed(StreamRun.FailReason)
     }
@@ -226,51 +261,54 @@ final class ExtractionRunner {
 
     var isRunning: Bool {
         switch state {
-        case .loading, .working: return true
+        case .loading, .working, .extracting: return true
         default: return false
         }
     }
 
-    private let qwen06 = MLXEngine(model: ModelCatalog.qwen06B, contextWindow: 32_768)
-    private let qwen17 = MLXEngine(model: ModelCatalog.qwen17B, contextWindow: 32_768)
-    private let afmAvailabilityNote: String? = {
-        let afm = EngineRegistry.makeEngines().first { $0.spec.id == "afm" }
-        guard let afm else { return "Needs macOS 26 / iOS 26" }
-        switch afm.availability {
+    private let qwen06 = EngineRegistry.mlxEngine(for: ModelCatalog.qwen06B)
+    private let qwen17 = EngineRegistry.mlxEngine(for: ModelCatalog.qwen17B)
+    private let afmEngine = EngineRegistry.makeEngines().first { $0.spec.id == "afm" }
+
+    /// Computed on every run, not cached: Apple Intelligence can finish
+    /// downloading (or be toggled) while the app is open.
+    private var afmAvailabilityNote: String? {
+        guard let afmEngine else { return "Needs macOS 26 / iOS 26" }
+        switch afmEngine.availability {
         case .available: return nil
         case .downloading: return "Model downloading"
         case .unavailable(let reason): return reason
         }
-    }()
+    }
 
     func title(for choice: EngineChoice) -> String {
         switch choice {
-        case .afm: return "Apple FM"
-        case .qwen06B: return "Qwen3 0.6B"
-        case .qwen17B: return "Qwen3 1.7B"
+        case .afm: return "Apple FM · ~3B · 2-bit"
+        case .qwen06B: return ModelCatalog.qwen06B.displayName
+        case .qwen17B: return ModelCatalog.qwen17B.displayName
         }
     }
 
-    func run() {
+    func run(prompt: String) {
         guard !isRunning else { return }
         let choice = selection
         Task { @MainActor in
             switch choice {
-            case .afm: await runAFM()
-            case .qwen06B: await runMLX(qwen06, choice: choice)
-            case .qwen17B: await runMLX(qwen17, choice: choice)
+            case .afm: await runAFM(prompt: prompt)
+            case .qwen06B: await runMLX(qwen06, choice: choice, prompt: prompt)
+            case .qwen17B: await runMLX(qwen17, choice: choice, prompt: prompt)
             }
         }
     }
 
-    private func runAFM() async {
+    private func runAFM(prompt: String) async {
         if let note = afmAvailabilityNote {
             state = .failed(.other(note))
             return
         }
-        state = .working(streamed: "")
+        state = .extracting
         do {
-            let fields = try await AFMExtractor.extractInvoice(prompt: PromptLibrary.chargingInvoice)
+            let fields = try await AFMExtractor.extractInvoice(prompt: prompt)
             let result = TicketValidator.validate(fields: fields, raw: "(structured — schema enforced by the runtime)")
             state = .finished(result)
             history[.afm, default: []].append(result.passed)
@@ -283,7 +321,7 @@ final class ExtractionRunner {
         }
     }
 
-    private func runMLX(_ engine: MLXEngine, choice: EngineChoice) async {
+    private func runMLX(_ engine: MLXEngine, choice: EngineChoice, prompt: String) async {
         state = .loading(0)
         do {
             try await engine.prepare { p in
@@ -296,26 +334,26 @@ final class ExtractionRunner {
             return
         }
         state = .working(streamed: "")
-        var streamed = ""
         do {
-            for try await delta in engine.stream(
-                prompt: PromptLibrary.chargingInvoice, system: nil, maxTokens: 512
-            ) {
-                streamed += delta.text
-                state = .working(streamed: streamed)
-            }
+            // Grammar-locked with mlx-swift-structured — the open-weight mirror of AFM's
+            // @Generable. XGrammar constrains decoding to the six-field invoice schema, so
+            // (like the Apple path) malformed JSON is impossible; the result decodes straight
+            // into typed fields.
+            let fields = try await engine.structured(
+                prompt: prompt,
+                schema: GrammarLock.invoiceSchema,
+                as: InvoiceFields.self,
+                maxTokens: 512)
+            let result = TicketValidator.validate(fields: fields, raw: "(grammar-locked · mlx-swift-structured)")
+            state = .finished(result)
+            history[choice, default: []].append(result.passed)
         } catch let error as EngineError {
             state = .failed(StreamRun.FailReason(error))
             history[choice, default: []].append(false)
-            return
         } catch {
             state = .failed(.other(error.localizedDescription))
             history[choice, default: []].append(false)
-            return
         }
-        let result = TicketValidator.validate(rawOutput: streamed)
-        state = .finished(result)
-        history[choice, default: []].append(result.passed)
     }
 }
 

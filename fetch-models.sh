@@ -11,6 +11,7 @@ cd "$(dirname "$0")"
 MODELS=(
   "mlx-community/Qwen3-0.6B-4bit"
   "mlx-community/Qwen3-1.7B-4bit"
+  "mlx-community/Qwen3.5-2B-MLX-4bit"
   "mlx-community/Qwen3-4B-4bit"
   "mlx-community/SmolLM3-3B-4bit"
   # No official mlx-community 4-bit exists for SmolLM2; this community quant is

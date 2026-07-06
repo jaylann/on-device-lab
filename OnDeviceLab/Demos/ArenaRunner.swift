@@ -38,13 +38,12 @@ final class ArenaRunner {
     var lanes: [Lane]
     var isRunning = false
 
-    /// Parallel races look great on the Mac; on iPhone two resident models can
-    /// evict each other, so sequential (load → run → unload) is the default.
-    #if os(macOS)
-    var parallel = true
-    #else
+    /// Sequential (load → run → unload) is the default everywhere: each lane
+    /// gets the GPU to itself, so the numbers are honest — and on iPhone it also
+    /// stops resident models from evicting each other. Parallel is "race mode":
+    /// the visual of every lane streaming at once, at the price of GPU
+    /// contention, so its numbers are not comparable.
     var parallel = false
-    #endif
 
     private var raceTask: Task<Void, Never>?
 
@@ -101,7 +100,12 @@ final class ArenaRunner {
                     }
                 }
             }
-            self.isRunning = false
+            // After a stop() the cancelled lanes have already been reset —
+            // don't let this late-finishing task fight that state.
+            if !Task.isCancelled {
+                self.isRunning = false
+                self.raceTask = nil
+            }
         }
     }
 
@@ -129,18 +133,13 @@ final class ArenaRunner {
             lane.run.phase = .idle
             return
         }
-        let stream = lane.engine.stream(
-            prompt: prompt,
-            system: systemPrompt(for: lane.engine),
-            maxTokens: maxTokens)
+        // No system prompt for ANY lane — every engine gets the identical,
+        // bare user prompt. (SmolLM3's thinking is already disabled through
+        // `enable_thinking: false` in ModelCatalog.chatSession, verified to
+        // reach its chat template — an extra "/no_think" for one lane would
+        // make the comparison uneven.)
+        let stream = lane.engine.stream(prompt: prompt, system: nil, maxTokens: maxTokens)
         await lane.run.consume(stream)
-    }
-
-    /// SmolLM3 thinks by default. `enable_thinking: false` from
-    /// `ModelCatalog.chatSession` does reach its chat template (verified:
-    /// ChatSession → UserInput.additionalContext → applyChatTemplate), but on
-    /// stage we add the model's own "/no_think" soft switch as insurance.
-    static func systemPrompt(for engine: any InferenceEngine) -> String? {
-        engine.spec.id.contains("SmolLM3") ? "/no_think" : nil
+        if Task.isCancelled { lane.run.phase = .idle }
     }
 }

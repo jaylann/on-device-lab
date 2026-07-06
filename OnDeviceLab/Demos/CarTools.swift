@@ -4,8 +4,9 @@ import Foundation
 //  TOOL CALLING — three canned, deterministic car tools
 //
 //  Both engines call the same `CarToolbox`. AFM gets real Tool-protocol
-//  structs (the runtime does the call loop); the open-weight path does the
-//  JSON-protocol dance by hand, which is exactly the point of the demo.
+//  structs (the runtime does the call loop); the open-weight path runs a
+//  grammar-locked JSON loop (`GrammarLock` + MLXEngine.structured), so both
+//  sides carry the same "no malformed call" guarantee.
 //  All wording stays neutral (charging, range, weather) by design.
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -64,7 +65,7 @@ enum CarToolbox {
     }
 }
 
-// MARK: - The hand-rolled protocol for open-weight models
+// MARK: - Trace timeline
 
 /// One entry in the trace timeline the Tools tab renders.
 struct ToolTraceStep: Identifiable {
@@ -76,52 +77,6 @@ struct ToolTraceStep: Identifiable {
     let title: String
     let detail: String
     let ok: Bool
-}
-
-struct ParsedToolCall {
-    let name: String
-    let arguments: [String: Any]
-}
-
-enum MLXToolProtocol {
-
-    /// The whole "function calling" contract for the open-weight path is just
-    /// this system prompt. No runtime support — the model either follows it or
-    /// the trace shows it didn't.
-    static let systemPrompt = """
-    You are an in-car assistant. You can call these tools:
-    - charging_stations(near: string) — list fast-charging stations near a place
-    - vehicle_range() — current battery percent and remaining range in km
-    - weather(at: string) — current weather at a place
-
-    To call a tool, reply ONLY with one JSON object like \
-    {"tool": "charging_stations", "arguments": {"near": "Stuttgart"}} and nothing else.
-    When you have the information you need, reply with a short plain-language \
-    answer for the driver (no JSON).
-    """
-
-    /// Pull `{"tool": ..., "arguments": {...}}` out of a model reply, if the
-    /// reply is a tool call at all. Reuses the extraction stripper so `<think>`
-    /// blocks and fences don't confuse the parser.
-    ///
-    /// ── MILESTONE 4a · TOOL IT (open-weight path) ────────────────────────────
-    /// Open-weight "function calling" has no runtime support — it's just the
-    /// `systemPrompt` contract above plus THIS parser. Turn a model reply into a
-    /// `ParsedToolCall`, or `nil` if it isn't a tool call (then it's the final
-    /// answer). `strip()` already isolated the JSON. Until you fill this in, the
-    /// Tools tab shows the model turn but never fires a tool. Stuck? Build the
-    /// "OnDeviceLab (Solution)" scheme (reference lives in Solutions/Solutions.swift).
-    /// ─────────────────────────────────────────────────────────────────────────
-    #if !SOLUTION
-    static func parseToolCall(_ text: String) -> ParsedToolCall? {
-        let cleaned = TicketValidator.strip(text)
-        // TODO 4a — JSON-decode `cleaned`; if it has a string "tool" key, return a
-        //   ParsedToolCall(name:, arguments:) using its "arguments" object (or [:]).
-        //   Otherwise return nil so the caller treats the reply as the final answer.
-        _ = cleaned
-        return nil
-    }
-    #endif
 }
 
 // MARK: - Apple FM tools (runtime-managed call loop)
@@ -209,7 +164,10 @@ private enum AFMToolSession {
             instructions: "You are an in-car assistant. Use the tools to ground your answer, "
                 + "then answer the driver in at most two short sentences.")
         do {
-            return try await session.respond(to: prompt).content
+            // Same sampling and per-answer token cap as the grammar-locked MLX loop.
+            return try await session.respond(
+                to: prompt,
+                options: GenerationOptions(temperature: 0.3, maximumResponseTokens: 200)).content
         } catch let error as LanguageModelSession.GenerationError {
             throw EngineError(generationError: error)
         }

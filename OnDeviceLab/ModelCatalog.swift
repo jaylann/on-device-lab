@@ -32,15 +32,21 @@ enum ModelCatalog {
         id: "Irfanuruchi/SmolLM2-1.7B-Instruct-MLX-4bit",
         displayName: "SmolLM2 1.7B · 4-bit",
         note: "Arena class · ~1 GB · 8k ctx · llama-arch")
+    static let qwen35 = LabModel(
+        id: "mlx-community/Qwen3.5-2B-MLX-4bit",
+        displayName: "Qwen3.5 2B · 4-bit",
+        note: "Round-1 chart model · ~1.4 GB · 262k ctx · runs natively (qwen3_5 arch in mlx-swift-lm)")
 
-    static let all: [LabModel] = [qwen06B, qwen17B, qwen4B, smolLM3, smolLM2]
+    static let all: [LabModel] = [qwen06B, qwen17B, qwen35, qwen4B, smolLM3, smolLM2]
 
-    /// The first two are what slide 21 reports; the 4B is the M3 stress model.
-    static let benchmarkSet: [LabModel] = [qwen06B, qwen17B]
+    /// The open-weight models on the deck's Round-1 latency chart, plus the 0.6B floor,
+    /// so the app measures the same lineup the deck reports. (The 4B is held back as the
+    /// M3 stress model; AFM + cloud are measured through their own paths.)
+    static let benchmarkSet: [LabModel] = [qwen17B, smolLM2, qwen35, smolLM3, qwen06B]
 
     /// AFM's sparring partners in the arena — same ~size class as the on-device
     /// 3B foundation model, so the race is fair.
-    static let arenaSet: [LabModel] = [qwen17B, smolLM3]
+    static let arenaSet: [LabModel] = [qwen17B, qwen35, smolLM3]
 
     /// Local model share (slide 26): if `~/Documents/models/<repo-leaf>` exists, load it with
     /// no network. Otherwise fall back to a Hugging Face download. `fetch-models.sh` stages this.

@@ -1,4 +1,5 @@
-//  Solutions.swift — reference implementations for the code-along milestones.
+//  Solutions.swift — reference implementations for the code-along milestones:
+//  M2 (measure), M3b (AFM extraction), M4b (AFM weather tool).
 //
 //  Compiled ONLY by the "OnDeviceLab (Solution)" scheme (the SOLUTION flag). In
 //  the default scheme every symbol here is #if'd out, and the participant-facing
@@ -22,41 +23,6 @@ extension BenchmarkRunner {
     }
 }
 
-// MARK: - M3a · Extract it, open-weight path (round 2 — structured output)
-
-extension TicketValidator {
-    static func validate(rawOutput: String) -> ValidationResult {
-        let cleaned = strip(rawOutput)
-        guard let data = cleaned.data(using: .utf8), !cleaned.isEmpty else {
-            return ValidationResult(fields: nil, missing: [], raw: rawOutput,
-                                    errorDescription: "No JSON object found in the output")
-        }
-        do {
-            // Decode the cleaned JSON into the typed struct.
-            let fields = try JSONDecoder().decode(InvoiceFields.self, from: data)
-            // A decode success still isn't a *complete* answer: report gaps.
-            return ValidationResult(fields: fields, missing: missingFields(in: fields),
-                                    raw: rawOutput, errorDescription: nil)
-        } catch {
-            return ValidationResult(fields: nil, missing: [], raw: rawOutput,
-                                    errorDescription: error.localizedDescription)
-        }
-    }
-}
-
-// MARK: - M4a · Tool it, open-weight path (round 3 — tool calling)
-
-extension MLXToolProtocol {
-    static func parseToolCall(_ text: String) -> ParsedToolCall? {
-        let cleaned = TicketValidator.strip(text)
-        guard let data = cleaned.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let name = object["tool"] as? String
-        else { return nil }
-        return ParsedToolCall(name: name, arguments: object["arguments"] as? [String: Any] ?? [:])
-    }
-}
-
 // MARK: - M3b · Extract it, Apple FM path
 
 extension AFMExtractor {
@@ -66,7 +32,10 @@ extension AFMExtractor {
             let session = LanguageModelSession()
             do {
                 // Generate directly into the schema — no string parsing anywhere.
-                let response = try await session.respond(to: prompt, generating: GenerableInvoice.self)
+                // Same sampling and token cap as the grammar-locked MLX path.
+                let response = try await session.respond(
+                    to: prompt, generating: GenerableInvoice.self,
+                    options: GenerationOptions(temperature: 0.3, maximumResponseTokens: 512))
                 return response.content.asInvoiceFields
             } catch let error as LanguageModelSession.GenerationError {
                 throw EngineError(generationError: error)

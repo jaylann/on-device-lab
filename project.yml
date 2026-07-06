@@ -10,6 +10,15 @@ packages:
   MLXSwiftLM:
     url: https://github.com/ml-explore/mlx-swift-lm
     exactVersion: 2.31.3
+  # Grammar-locked structured output for the open-weight side (XGrammar under the hood):
+  # the mlx-swift-structured package the deck cites in Round 2. Its @Generable path is 26+,
+  # but the JSON-schema path we use here works on the app's iOS 17 / macOS 14 floor.
+  MLXStructured:
+    url: https://github.com/petrukha-ivan/mlx-swift-structured
+    majorVersion: 0.1.0
+  JSONSchema:
+    url: https://github.com/petrukha-ivan/swift-json-schema
+    majorVersion: 2.0.2
 
 settings:
   base:
@@ -35,6 +44,10 @@ targets:
         product: MLXLLM
       - package: MLXSwiftLM
         product: MLXLMCommon
+      - package: MLXStructured
+        product: MLXStructured
+      - package: JSONSchema
+        product: JSONSchema
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.lanfermann.ondevicelab

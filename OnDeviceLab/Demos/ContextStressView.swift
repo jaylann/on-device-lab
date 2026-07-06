@@ -9,13 +9,12 @@ struct ContextStressView: View {
     @State private var runner = ContextStressRunner()
     @State private var selectedTokens = 1_000
 
-    /// `PromptLibrary.contextBlock` entries are ~35 tokens each.
-    private static let tokensPerRepeat = 35
     private let presets = [1_000, 3_000, 5_000, 8_000, 16_000]
 
     var body: some View {
         NavigationStack {
             VStack(spacing: DS.Space.section) {
+                TabExplainer("A growing needle-in-a-trip-log prompt against each model's context window — watch AFM hit its 4,096-token hard limit while the open windows keep going.")
                 sizeChips
                 engineChips
                 resultsTable
@@ -23,7 +22,7 @@ struct ContextStressView: View {
                 runButton
             }
             .padding(DS.Space.gutter)
-            .ambientGradientBackground(tint: DS.accent)
+            .labScreenBackground(tint: DS.accent)
             .navigationTitle("Context Stress")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -166,7 +165,7 @@ struct ContextStressView: View {
     }
 
     private var footer: some View {
-        Text("Context windows: Apple FM 4,096 · Qwen3 32k · SmolLM3 64k")
+        Text("Context windows: Apple FM 4,096 · Qwen3 32k · Qwen3.5 262k · SmolLM3 64k")
             .font(.caption2).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 6)
@@ -175,7 +174,7 @@ struct ContextStressView: View {
     private var runButton: some View {
         Button {
             runner.run(approxTokens: selectedTokens,
-                       repeats: max(1, selectedTokens / Self.tokensPerRepeat))
+                       repeats: max(1, selectedTokens / PromptLibrary.tokensPerRepeat))
         } label: {
             Text(runner.isRunning ? "Running…" : "Send ~\(selectedTokens / 1_000)k tokens")
                 .font(.subheadline.weight(.semibold))
@@ -222,7 +221,7 @@ final class ContextStressRunner {
         let shortName: String
     }
 
-    /// AFM + Qwen3 1.7B + SmolLM3 — exactly what the registry's arena set gives us.
+    /// The registry's arena lineup: AFM plus the open-weight contenders.
     private let engines: [any InferenceEngine] = EngineRegistry.makeEngines()
 
     var rows: [ResultRow] = []
@@ -256,6 +255,9 @@ final class ContextStressRunner {
         Task { @MainActor in
             for engine in selected {
                 await self.runOne(engine, prompt: prompt, approxTokens: approxTokens)
+                // 16k-token KV caches add up fast — drop each open-weight
+                // model's weights before the next lane loads its own.
+                if engine.spec.badge == "MLX" { engine.unload() }
             }
             self.isRunning = false
         }
@@ -291,12 +293,9 @@ final class ContextStressRunner {
         rows[index].outcome = .running
         let run = StreamRun()
         // Short completions: the needle answer is one line, and we're here to
-        // measure prompt eval, not generation. Same SmolLM3 /no_think guard as
-        // the arena.
-        await run.consume(engine.stream(
-            prompt: prompt,
-            system: ArenaRunner.systemPrompt(for: engine),
-            maxTokens: 96))
+        // measure prompt eval, not generation. No system prompt for any lane —
+        // same fairness rule as the arena.
+        await run.consume(engine.stream(prompt: prompt, system: nil, maxTokens: 96))
 
         rows[index].ttftMs = run.ttftMs > 0 ? run.ttftMs : nil
         switch run.phase {
@@ -307,11 +306,9 @@ final class ContextStressRunner {
         }
     }
 
+    /// Full display names everywhere — size and quantization stay visible.
     private func shortName(for spec: EngineSpec) -> String {
-        if spec.id == "afm" { return "Apple FM" }
-        if spec.id.contains("SmolLM3") { return "SmolLM3 3B" }
-        if spec.id.contains("Qwen3-1.7B") { return "Qwen3 1.7B" }
-        return spec.displayName
+        spec.displayName
     }
 }
 

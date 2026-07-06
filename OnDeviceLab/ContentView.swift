@@ -19,7 +19,7 @@ struct ContentView: View {
                 composer
             }
             .padding(DS.Space.gutter)
-            .ambientGradientBackground(tint: DS.accent)
+            .labScreenBackground(tint: DS.accent)
             .navigationTitle("On-Device Lab")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -28,6 +28,7 @@ struct ContentView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button("Chat prompt") { promptText = PromptLibrary.chatDefault }
+                        Button("Ticket extraction prompt") { promptText = PromptLibrary.extraction }
                         Button("Long-context prompt (M3)") { promptText = PromptLibrary.longContext }
                     } label: {
                         Label("Sample prompts", systemImage: "text.badge.plus")

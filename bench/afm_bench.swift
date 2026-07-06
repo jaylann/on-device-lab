@@ -1,21 +1,16 @@
 // AFM benchmark CLI — Apple Foundation Models on macOS 26.
 // Measures first-snapshot TTFT and ≈tok/s (chars/4, no client token API on macOS 26).
-// Mirrors bench.py: same extraction prompt, warmup + N runs, p50/p99, JSON out.
+// Mirrors bench.py: same long-form generation prompt, warmup + N runs, p50/p99, JSON out.
+// Long-form prose (≥500 tok) keeps chars/4 ≈ true tokens and gives a stable steady-state decode.
 import Foundation
 import FoundationModels
 
 let PROMPT = """
-You extract structured data from event tickets. Read the raw text below and \
-return ONLY a JSON object with keys: type, title, venue, city, date, seat. If a field is missing, \
-use null. Do not invent values that are not present in the text.
-
-RAW TICKET TEXT:
-Die Fantastischen Vier - Live 2026  ||  Olympiahalle Muenchen, Spiridon-Louis-Ring 21
-Einlass 19:00  Beginn 20:00   12.09.2026   Block C  Reihe 14  Platz 7
-Order #DE-99213birra  ticket-id 8841200391  price 89,90 EUR incl. VAT
-Bitte halten Sie diesen QR-Code am Einlass bereit. Kein Wiederverkauf.
-
-Return the JSON now:
+You are an in-car voice assistant. A passenger asks how regenerative braking works and how it \
+affects the car's range in city versus highway driving. Answer in clear, friendly prose of at \
+least 500 words. Cover the physics of turning motion back into charge, what the driver feels \
+through the pedal, when it helps most, when it barely helps, and its limits in cold weather and \
+at high speed.
 """
 
 func percentile(_ values: [Double], _ q: Double) -> Double {

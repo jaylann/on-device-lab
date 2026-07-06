@@ -8,7 +8,7 @@ struct BenchmarkView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DS.Space.section) {
-                Text("Same prompt, warmup + 5 runs per model. TTFT = time to first token; tok/s = sustained decode. Numbers stay 0 until you fill the two TODOs in Benchmark.swift (or run the Solution scheme).")
+                Text("Same long-form prompt as the bench harness (bench.py), warmup + 5 runs per model, 600 max tokens. TTFT = time to first token; tok/s = sustained decode. Numbers stay 0 until you fill the two TODOs in Benchmark.swift (or run the Solution scheme).")
                     .font(.footnote).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -18,13 +18,13 @@ struct BenchmarkView: View {
             .padding(DS.Space.gutter)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .ambientGradientBackground(tint: DS.accent)
+        .labScreenBackground(tint: DS.accent)
         .onChange(of: runner.isRunning) { _, running in
             // Write the export file once, when a run finishes — not on every redraw.
             guard !running else { exportURL = nil; return }
             exportURL = runner.results.isEmpty ? nil
                 : ResultsExporter.writeTempFile(
-                    ResultsExporter.payload(from: runner.results, device: runner.device, maxTokens: 128))
+                    ResultsExporter.payload(from: runner.results, device: runner.device, maxTokens: 600))
         }
         .navigationTitle("Benchmark")
         #if os(iOS)

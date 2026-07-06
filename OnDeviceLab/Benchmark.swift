@@ -39,7 +39,9 @@ final class BenchmarkRunner {
     var results: [ModelBenchResult] = []
     let device = DeviceInfo.label
 
-    func run(models: [LabModel], runs: Int = 5, warmup: Int = 1, maxTokens: Int = 128) async {
+    /// Defaults mirror `bench/bench.py` (same prompt, same 600-token cap) so the
+    /// in-app numbers are comparable to the harness behind the deck's chart.
+    func run(models: [LabModel], runs: Int = 5, warmup: Int = 1, maxTokens: Int = 600) async {
         isRunning = true
         defer { isRunning = false }
         results = []
@@ -58,13 +60,13 @@ final class BenchmarkRunner {
 
             for _ in 0..<warmup {
                 note = "\(model.displayName): warmup"
-                _ = try? await measure(container: container, prompt: PromptLibrary.extraction, maxTokens: maxTokens)
+                _ = try? await measure(container: container, prompt: PromptLibrary.benchmark, maxTokens: maxTokens)
             }
 
             var samples: [BenchSample] = []
             for i in 0..<runs {
                 note = "\(model.displayName): run \(i + 1)/\(runs)"
-                if let s = try? await measure(container: container, prompt: PromptLibrary.extraction, maxTokens: maxTokens) {
+                if let s = try? await measure(container: container, prompt: PromptLibrary.benchmark, maxTokens: maxTokens) {
                     samples.append(s)
                 }
             }
@@ -91,7 +93,9 @@ final class BenchmarkRunner {
         }
 
         let end = Date()
-        // Done for you: turns your two values into the two numbers.
+        // Done for you: turns your two values into the two numbers. This math
+        // deliberately mirrors bench.py's one_run (first token IS counted) — keep
+        // them in lock-step even though StreamRun.consume excludes the first delta.
         let ttft = (firstTokenTime ?? end).timeIntervalSince(start)
         let decodeSeconds = max(end.timeIntervalSince(firstTokenTime ?? start), 0.0001)
         let tokPerSec = Double(tokenCount) / decodeSeconds
