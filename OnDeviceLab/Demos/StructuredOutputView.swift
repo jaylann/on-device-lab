@@ -9,11 +9,30 @@ struct StructuredOutputView: View {
     @State private var selectedPreset = presets[0]
 
     /// Three receipts, same six-field schema: a clean one, a different provider,
-    /// and an OCR-grade mess where engines are allowed to stumble.
-    private static let presets: [(title: String, prompt: String)] = [
-        ("IONITY (clean)", PromptLibrary.chargingInvoice),
-        ("EnBW (clean)", PromptLibrary.chargingInvoiceAlt),
-        ("Fastned (messy scan)", PromptLibrary.chargingInvoiceScan),
+    /// and an OCR-grade mess. Each carries its ground truth — extraction is
+    /// graded on VALUES, not just parseability.
+    struct Preset {
+        let title: String
+        let prompt: String
+        let expected: InvoiceFields
+    }
+
+    private static let presets: [Preset] = [
+        Preset(title: "IONITY (clean)",
+               prompt: PromptLibrary.chargingInvoice,
+               expected: InvoiceFields(provider: "IONITY", location: "Stuttgart-Zuffenhausen",
+                                       kwh: 43.7, duration_min: 31.2, total_eur: 34.52,
+                                       session_id: "IONITY-DE-2207-884131")),
+        Preset(title: "EnBW (clean)",
+               prompt: PromptLibrary.chargingInvoiceAlt,
+               expected: InvoiceFields(provider: "EnBW", location: "Pragsattel",
+                                       kwh: 27.9, duration_min: 18.6, total_eur: 17.02,
+                                       session_id: "ENBW-DE-0702-113058")),
+        Preset(title: "Fastned (messy scan)",
+               prompt: PromptLibrary.chargingInvoiceScan,
+               expected: InvoiceFields(provider: "Fastned", location: "Kamener Kreuz",
+                                       kwh: 61.5, duration_min: 44.8, total_eur: 58.41,
+                                       session_id: "FASTNED-DE-1119-002764")),
     ]
 
     var body: some View {
@@ -39,12 +58,12 @@ struct StructuredOutputView: View {
         // Horizontal scroll so the chip row can never shove a compact layout off-screen.
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: DS.Space.row) {
-                ForEach(ExtractionRunner.EngineChoice.allCases) { choice in
+                ForEach(runner.contenders) { contender in
                     EngineChip(
-                        title: runner.title(for: choice),
-                        selected: runner.selection == choice,
+                        title: contender.title,
+                        selected: runner.selection == contender.id,
                         enabled: !runner.isRunning
-                    ) { runner.selection = choice }
+                    ) { runner.selection = contender.id }
                 }
             }
         }
@@ -131,32 +150,35 @@ struct StructuredOutputView: View {
 
     @ViewBuilder private func validationView(_ result: ValidationResult) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            if let fields = result.fields {
+            if result.errorDescription == nil {
                 HStack(spacing: 8) {
                     Image(systemName: result.passed ? "checkmark.seal.fill" : "xmark.seal.fill")
                         .font(.title3)
                         .foregroundStyle(result.passed ? .green : .red)
-                    Text(result.passed ? "All six fields parsed" : "Schema incomplete")
+                    Text(result.passed ? "All six fields correct" : "Wrong or missing fields")
                         .font(.headline)
                 }
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                    ForEach(fields.fieldPairs, id: \.name) { pair in
+                    ForEach(result.checks, id: \.name) { check in
                         GridRow {
-                            Image(systemName: pair.value != nil ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            Image(systemName: check.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
                                 .font(.caption)
-                                .foregroundStyle(pair.value != nil ? .green : .red)
-                            Text(pair.name)
+                                .foregroundStyle(check.ok ? .green : .red)
+                            Text(check.name)
                                 .font(DS.Typo.mono)
                                 .foregroundStyle(.secondary)
-                            Text(pair.value ?? "missing")
-                                .font(DS.Typo.stream.weight(.semibold))
-                                .foregroundStyle(pair.value != nil ? .primary : .secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(check.got ?? "missing")
+                                    .font(DS.Typo.stream.weight(.semibold))
+                                    .foregroundStyle(check.got != nil ? (check.ok ? .primary : Color.red) : .secondary)
+                                if !check.ok {
+                                    Text("expected \(check.expected)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     }
-                }
-                if !result.missing.isEmpty {
-                    StatusChip(text: "missing: \(result.missing.joined(separator: ", "))",
-                               color: .red, icon: "exclamationmark.triangle.fill")
                 }
             } else {
                 // Exhibit A: the verbatim broken output, deliberately framed.
@@ -183,10 +205,10 @@ struct StructuredOutputView: View {
     private var scoreboard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Eyebrow("Scoreboard")
-            ForEach(ExtractionRunner.EngineChoice.allCases) { choice in
-                let results = runner.history[choice] ?? []
+            ForEach(runner.contenders) { contender in
+                let results = runner.history[contender.id] ?? []
                 HStack(spacing: 10) {
-                    Text(runner.title(for: choice))
+                    Text(contender.title)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .frame(width: 150, alignment: .leading)
@@ -209,7 +231,7 @@ struct StructuredOutputView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text("AFM's failure mode is refusal, not malformed JSON.")
+            Text("Pass = every field parsed AND matching the receipt. AFM's failure mode is refusal, not malformed JSON.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .padding(.top, 2)
@@ -220,7 +242,7 @@ struct StructuredOutputView: View {
     }
 
     private var runButton: some View {
-        Button { runner.run(prompt: selectedPreset.prompt) } label: {
+        Button { runner.run(prompt: selectedPreset.prompt, expected: selectedPreset.expected) } label: {
             Text(runner.isRunning ? "Running…" : "Run extraction")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(runner.isRunning ? AnyShapeStyle(.secondary) : AnyShapeStyle(.white))
@@ -239,9 +261,9 @@ struct StructuredOutputView: View {
 @Observable
 final class ExtractionRunner {
 
-    enum EngineChoice: String, CaseIterable, Identifiable {
-        case afm, qwen06B, qwen17B
-        var id: String { rawValue }
+    struct Contender: Identifiable, Hashable {
+        let id: String        // "afm" or a Hugging Face repo id
+        let title: String
     }
 
     enum State {
@@ -254,10 +276,17 @@ final class ExtractionRunner {
         case failed(StreamRun.FailReason)
     }
 
-    var selection: EngineChoice = .qwen06B
+    static let afmID = "afm"
+
+    /// AFM plus the full model catalog — the same lineup the Chat tab offers.
+    let contenders: [Contender] =
+        [Contender(id: afmID, title: "Apple FM · ~3B · 2-bit")]
+        + ModelCatalog.all.map { Contender(id: $0.id, title: $0.displayName) }
+
+    var selection: String = ModelCatalog.qwen06B.id
     var state: State = .idle
     /// Green/red dots per engine, in-memory for the session.
-    var history: [EngineChoice: [Bool]] = [:]
+    var history: [String: [Bool]] = [:]
 
     var isRunning: Bool {
         switch state {
@@ -266,8 +295,9 @@ final class ExtractionRunner {
         }
     }
 
-    private let qwen06 = EngineRegistry.mlxEngine(for: ModelCatalog.qwen06B)
-    private let qwen17 = EngineRegistry.mlxEngine(for: ModelCatalog.qwen17B)
+    private var mlxEngines: [String: MLXEngine] = [:]
+    /// The one MLX model kept resident; switching contenders unloads the last.
+    private var loadedEngine: MLXEngine?
     private let afmEngine = EngineRegistry.makeEngines().first { $0.spec.id == "afm" }
 
     /// Computed on every run, not cached: Apple Intelligence can finish
@@ -281,27 +311,19 @@ final class ExtractionRunner {
         }
     }
 
-    func title(for choice: EngineChoice) -> String {
-        switch choice {
-        case .afm: return "Apple FM · ~3B · 2-bit"
-        case .qwen06B: return ModelCatalog.qwen06B.displayName
-        case .qwen17B: return ModelCatalog.qwen17B.displayName
-        }
-    }
-
-    func run(prompt: String) {
+    func run(prompt: String, expected: InvoiceFields) {
         guard !isRunning else { return }
-        let choice = selection
+        let id = selection
         Task { @MainActor in
-            switch choice {
-            case .afm: await runAFM(prompt: prompt)
-            case .qwen06B: await runMLX(qwen06, choice: choice, prompt: prompt)
-            case .qwen17B: await runMLX(qwen17, choice: choice, prompt: prompt)
+            if id == Self.afmID {
+                await runAFM(prompt: prompt, expected: expected)
+            } else if let model = ModelCatalog.all.first(where: { $0.id == id }) {
+                await runMLX(model: model, prompt: prompt, expected: expected)
             }
         }
     }
 
-    private func runAFM(prompt: String) async {
+    private func runAFM(prompt: String, expected: InvoiceFields) async {
         if let note = afmAvailabilityNote {
             state = .failed(.other(note))
             return
@@ -309,19 +331,21 @@ final class ExtractionRunner {
         state = .extracting
         do {
             let fields = try await AFMExtractor.extractInvoice(prompt: prompt)
-            let result = TicketValidator.validate(fields: fields, raw: "(structured — schema enforced by the runtime)")
+            let result = TicketValidator.validate(
+                fields: fields, raw: "(structured — schema enforced by the runtime)", expected: expected)
             state = .finished(result)
-            history[.afm, default: []].append(result.passed)
+            history[Self.afmID, default: []].append(result.passed)
         } catch let error as EngineError {
             state = .failed(StreamRun.FailReason(error))
-            history[.afm, default: []].append(false)
+            history[Self.afmID, default: []].append(false)
         } catch {
             state = .failed(.other(error.localizedDescription))
-            history[.afm, default: []].append(false)
+            history[Self.afmID, default: []].append(false)
         }
     }
 
-    private func runMLX(_ engine: MLXEngine, choice: EngineChoice, prompt: String) async {
+    private func runMLX(model: LabModel, prompt: String, expected: InvoiceFields) async {
+        let engine = mlxEngine(for: model)
         state = .loading(0)
         do {
             try await engine.prepare { p in
@@ -344,16 +368,27 @@ final class ExtractionRunner {
                 schema: GrammarLock.invoiceSchema,
                 as: InvoiceFields.self,
                 maxTokens: 512)
-            let result = TicketValidator.validate(fields: fields, raw: "(grammar-locked · mlx-swift-structured)")
+            let result = TicketValidator.validate(
+                fields: fields, raw: "(grammar-locked · mlx-swift-structured)", expected: expected)
             state = .finished(result)
-            history[choice, default: []].append(result.passed)
+            history[model.id, default: []].append(result.passed)
         } catch let error as EngineError {
             state = .failed(StreamRun.FailReason(error))
-            history[choice, default: []].append(false)
+            history[model.id, default: []].append(false)
         } catch {
             state = .failed(.other(error.localizedDescription))
-            history[choice, default: []].append(false)
+            history[model.id, default: []].append(false)
         }
+    }
+
+    private func mlxEngine(for model: LabModel) -> MLXEngine {
+        let engine = mlxEngines[model.id] ?? EngineRegistry.mlxEngine(for: model)
+        mlxEngines[model.id] = engine
+        if let loadedEngine, loadedEngine !== engine {
+            loadedEngine.unload()
+        }
+        loadedEngine = engine
+        return engine
     }
 }
 

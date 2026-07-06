@@ -64,28 +64,62 @@ struct InvoiceFields: Codable {
     }
 }
 
-/// Outcome of one extraction run: parsed fields, or the exact broken output.
+/// One field graded against the receipt's ground truth.
+struct FieldCheck {
+    let name: String
+    let got: String?
+    let expected: String
+    let ok: Bool
+}
+
+/// Outcome of one extraction run: per-field verdicts, or the exact broken output.
 struct ValidationResult {
-    let fields: InvoiceFields?
-    let missing: [String]
+    let checks: [FieldCheck]
     let raw: String
     let errorDescription: String?
 
-    var passed: Bool { fields != nil && missing.isEmpty && errorDescription == nil }
+    var passed: Bool {
+        errorDescription == nil && !checks.isEmpty && checks.allSatisfy { $0.ok }
+    }
 }
 
-/// The validation half of the pipeline: both engines produce typed fields
-/// (grammar lock / @Generable), so validation is a presence check per field.
+/// The validation half of the pipeline. Both engines produce typed fields
+/// (grammar lock / @Generable) so the schema always holds — the real question
+/// is whether the VALUES match the receipt. Presence isn't correctness.
 enum TicketValidator {
 
-    static func missingFields(in fields: InvoiceFields) -> [String] {
-        fields.fieldPairs.filter { $0.value == nil }.map { $0.name }
+    private static let numericFields: Set<String> = ["kwh", "duration_min", "total_eur"]
+
+    /// Grade typed fields against the preset's known-good values.
+    static func validate(fields: InvoiceFields, raw: String, expected: InvoiceFields) -> ValidationResult {
+        let checks = zip(fields.fieldPairs, expected.fieldPairs).map { got, exp in
+            FieldCheck(name: got.name, got: got.value, expected: exp.value ?? "",
+                       ok: matches(got.value, exp.value ?? "", numeric: numericFields.contains(got.name)))
+        }
+        return ValidationResult(checks: checks, raw: raw, errorDescription: nil)
     }
 
-    /// For fields that arrived already-typed (the AFM path).
-    static func validate(fields: InvoiceFields, raw: String) -> ValidationResult {
-        ValidationResult(fields: fields, missing: missingFields(in: fields),
-                         raw: raw, errorDescription: nil)
+    /// Lenient on formatting, strict on substance: numbers within ±0.05,
+    /// strings normalized and matched by containment either way (so
+    /// "IONITY GmbH" satisfies "IONITY", "…Kamener Kreuz Nord, 59174 Kamen"
+    /// satisfies "Kamener Kreuz") — but a value from the wrong session fails.
+    private static func matches(_ got: String?, _ expected: String, numeric: Bool) -> Bool {
+        guard let got, !got.isEmpty, !expected.isEmpty else { return false }
+        if numeric {
+            guard let g = Double(got.replacingOccurrences(of: ",", with: ".")),
+                  let e = Double(expected.replacingOccurrences(of: ",", with: "."))
+            else { return false }
+            return abs(g - e) < 0.05
+        }
+        let g = normalize(got), e = normalize(expected)
+        return g == e || g.contains(e) || e.contains(g)
+    }
+
+    private static func normalize(_ s: String) -> String {
+        s.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 }
 

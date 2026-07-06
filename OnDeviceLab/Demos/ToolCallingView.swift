@@ -29,12 +29,12 @@ struct ToolCallingView: View {
         // Horizontal scroll so the chip row can never shove a compact layout off-screen.
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: DS.Space.row) {
-                ForEach(ToolCallRunner.EngineChoice.allCases) { choice in
+                ForEach(runner.contenders) { contender in
                     EngineChip(
-                        title: choice.title,
-                        selected: runner.selection == choice,
+                        title: contender.title,
+                        selected: runner.selection == contender.id,
                         enabled: !runner.isRunning
-                    ) { runner.selection = choice }
+                    ) { runner.selection = contender.id }
                 }
             }
         }
@@ -177,18 +177,19 @@ struct ToolCallingView: View {
 @Observable
 final class ToolCallRunner {
 
-    enum EngineChoice: String, CaseIterable, Identifiable {
-        case afm, qwen17B
-        var id: String { rawValue }
-        var title: String {
-            switch self {
-            case .afm: return "Apple FM · ~3B · 2-bit"
-            case .qwen17B: return ModelCatalog.qwen17B.displayName
-            }
-        }
+    struct Contender: Identifiable, Hashable {
+        let id: String        // "afm" or a Hugging Face repo id
+        let title: String
     }
 
-    var selection: EngineChoice = .qwen17B
+    static let afmID = "afm"
+
+    /// AFM plus the full model catalog — the same lineup the Chat tab offers.
+    let contenders: [Contender] =
+        [Contender(id: afmID, title: "Apple FM · ~3B · 2-bit")]
+        + ModelCatalog.all.map { Contender(id: $0.id, title: $0.displayName) }
+
+    var selection: String = ModelCatalog.qwen17B.id
     var trace: [ToolTraceStep] = []
     var isRunning = false
     var loadProgress: Double?
@@ -197,17 +198,20 @@ final class ToolCallRunner {
     /// lock's loop terminator, not a tool.
     private static let toolCount = GrammarLock.toolNames.count - 1
 
-    private let mlx = EngineRegistry.mlxEngine(for: ModelCatalog.qwen17B)
+    private var mlxEngines: [String: MLXEngine] = [:]
+    /// The one MLX model kept resident; switching contenders unloads the last.
+    private var loadedEngine: MLXEngine?
 
     func run(prompt: String) {
         guard !isRunning else { return }
         isRunning = true
         trace = []
-        let choice = selection
+        let id = selection
         Task { @MainActor in
-            switch choice {
-            case .afm: await runAFM(prompt: prompt)
-            case .qwen17B: await runMLX(prompt: prompt)
+            if id == Self.afmID {
+                await runAFM(prompt: prompt)
+            } else if let model = ModelCatalog.all.first(where: { $0.id == id }) {
+                await runMLX(model: model, prompt: prompt)
             }
             self.isRunning = false
             self.loadProgress = nil
@@ -241,7 +245,8 @@ final class ToolCallRunner {
     /// the same guarantee AFM's runtime gives. Loops until `final_answer`, forcing a
     /// grounded answer if the model repeats a call or hits the hop cap. This is the fair
     /// mirror of AFM's native loop (and matches the measured re-run in the capability eval).
-    private func runMLX(prompt: String) async {
+    private func runMLX(model: LabModel, prompt: String) async {
+        let mlx = mlxEngine(for: model)
         loadProgress = 0
         do {
             try await mlx.prepare { p in
@@ -252,7 +257,7 @@ final class ToolCallRunner {
             return
         }
         loadProgress = nil
-        append(.model, ModelCatalog.qwen17B.displayName,
+        append(.model, model.displayName,
                "session · \(Self.toolCount) registered tools · grammar-locked JSON loop", ok: true)
 
         var transcript = prompt
@@ -286,15 +291,15 @@ final class ToolCallRunner {
             transcript += "\n\nTOOL RESULT [\(call.tool)]: \(result)"
 
             let sig = "\(call.tool)|\(call.near ?? "")|\(call.at ?? "")"
-            if called.contains(sig) { await forceFinalAnswer(transcript); return }
+            if called.contains(sig) { await forceFinalAnswer(mlx, transcript); return }
             called.insert(sig)
         }
-        await forceFinalAnswer(transcript)
+        await forceFinalAnswer(mlx, transcript)
     }
 
     /// Ground a final answer once the model loops or runs out of hops (isolates grounding
     /// from the small-model self-termination weakness — same trick as the eval harness).
-    private func forceFinalAnswer(_ transcript: String) async {
+    private func forceFinalAnswer(_ mlx: MLXEngine, _ transcript: String) async {
         if let final = try? await mlx.structured(
             prompt: transcript + "\n\nNow reply with the final grounded answer for the driver.",
             system: GrammarLock.toolSystem, schema: GrammarLock.finalAnswerSchema,
@@ -303,6 +308,16 @@ final class ToolCallRunner {
         } else {
             append(.failure, "no final answer", "model did not produce a grounded reply", ok: false)
         }
+    }
+
+    private func mlxEngine(for model: LabModel) -> MLXEngine {
+        let engine = mlxEngines[model.id] ?? EngineRegistry.mlxEngine(for: model)
+        mlxEngines[model.id] = engine
+        if let loadedEngine, loadedEngine !== engine {
+            loadedEngine.unload()
+        }
+        loadedEngine = engine
+        return engine
     }
 
     private func append(_ kind: ToolTraceStep.Kind, _ title: String, _ detail: String, ok: Bool) {
