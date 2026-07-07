@@ -10,6 +10,8 @@ see the contrast live: latency, structured output, tool calling, and context lim
 ```bash
 git clone https://github.com/jaylann/on-device-lab
 cd on-device-lab
+brew install xcodegen        # once, if you don't have it
+xcodegen generate           # builds OnDeviceLab.xcodeproj from project.yml
 open OnDeviceLab.xcodeproj
 ```
 In Xcode pick the **`OnDeviceLab (Solution)`** scheme, then ⌘R. **Use this scheme for the live
