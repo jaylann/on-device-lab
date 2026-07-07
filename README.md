@@ -3,8 +3,8 @@
 A SwiftUI app that runs open-weight LLMs **entirely on your Mac or iPhone** via
 [MLX](https://github.com/ml-explore/mlx-swift) — no API key, no server, works in airplane mode.
 Built for the Porsche Tech Day talk *"Not Every On-Device AI Is Apple Intelligence."* Every demo
-runs the same job two ways — an **open-weight model** vs **Apple's Foundation Model** — so the
-audience sees the contrast live: latency, structured output, tool calling, and context limits.
+runs the same job two ways — an **open-weight model** vs **Apple's Foundation Model** — so you can
+see the contrast live: latency, structured output, tool calling, and context limits.
 
 ## Run it
 ```bash
@@ -12,12 +12,12 @@ git clone https://github.com/jaylann/on-device-lab
 cd on-device-lab
 open OnDeviceLab.xcodeproj
 ```
-In Xcode pick the **`OnDeviceLab (Solution)`** scheme, then ⌘R. **Use this scheme for
-presenting** — the plain `OnDeviceLab` scheme leaves the teaching stubs unfilled, so the demos
-won't produce numbers.
+In Xcode pick the **`OnDeviceLab (Solution)`** scheme, then ⌘R. **Use this scheme for the live
+demos** — the plain `OnDeviceLab` scheme leaves the teaching stubs unfilled, so the demos won't
+produce numbers.
 
 The first time you **Load** a model it downloads the weights (a few hundred MB to ~2 GB); after
-that it runs fully offline. Load each model once on any connection before you go on stage.
+that it runs fully offline. Load each model once on any connection ahead of time.
 
 - **Requirements:** Apple Silicon Mac (M1 or newer), Xcode 26, ~4 GB free disk. On iPhone: iPhone 12+, iOS 17+.
 - **Signing:** none is set on purpose → macOS uses "Sign to Run Locally" and ⌘R just works.
@@ -36,7 +36,7 @@ Every screen races the same lineup:
 | **Qwen3.5 2B · 4-bit** | 262k context — the long-window contender |
 
 ## The demos — five tabs
-The app is five tabs along the bottom. Each is one story; run them left to right for the talk.
+The app is five tabs along the bottom. Each is one story; run them left to right to tell the whole one.
 
 ### 💬 Chat — "it just runs on the device"
 The plain "load a model, stream tokens" screen.
@@ -61,8 +61,7 @@ numbers aren't comparable).
 
 ### `{ }` Extract — "structured output that can't be malformed"
 Pull six fields out of a messy EV-charging receipt, graded live against ground truth.
-1. Pick an **engine** chip (default **Qwen3 0.6B** — it misses fields, and a red dot on stage
-   beats three slides).
+1. Pick an **engine** chip (default **Qwen3 0.6B** — it misses fields, which is the interesting part).
 2. Pick a **receipt** chip — **IONITY (clean)**, **EnBW (clean)**, or **Fastned (messy scan)**.
 3. Press **Run extraction**. Each of the six fields grades **green (right) or red (wrong)**, and
    the **Scoreboard** tallies passes per engine.
