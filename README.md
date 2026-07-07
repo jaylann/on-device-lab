@@ -14,9 +14,8 @@ brew install xcodegen        # once, if you don't have it
 xcodegen generate           # builds OnDeviceLab.xcodeproj from project.yml
 open OnDeviceLab.xcodeproj
 ```
-In Xcode pick the **`OnDeviceLab (Solution)`** scheme, then ⌘R. **Use this scheme for the live
-demos** — the plain `OnDeviceLab` scheme leaves the teaching stubs unfilled, so the demos won't
-produce numbers.
+In Xcode pick the **`OnDeviceLab (Solution)`** scheme, then ⌘R — the plain `OnDeviceLab` scheme
+leaves the teaching stubs unfilled, so it won't produce numbers.
 
 The first time you **Load** a model it downloads the weights (a few hundred MB to ~2 GB); after
 that it runs fully offline. Load each model once on any connection ahead of time.
@@ -38,7 +37,7 @@ Every screen races the same lineup:
 | **Qwen3.5 2B · 4-bit** | 262k context — the long-window contender |
 
 ## The demos — five tabs
-The app is five tabs along the bottom. Each is one story; run them left to right to tell the whole one.
+The app is five tabs along the bottom. Each is one story; run them left to right.
 
 ### 💬 Chat — "it just runs on the device"
 The plain "load a model, stream tokens" screen.
@@ -69,7 +68,7 @@ Pull six fields out of a messy EV-charging receipt, graded live against ground t
    the **Scoreboard** tallies passes per engine.
 
 The open-weight path uses a grammar lock, so its JSON is always well-formed — wrong values, never
-broken syntax. Apple FM's failure mode is refusal, not malformed JSON. (Point that out.)
+broken syntax. Apple FM's failure mode is refusal, not malformed JSON.
 
 ### 🔧 Tools — "let the model call the car"
 Answer a driver's question by calling car tools; every hop draws itself into a trace timeline.
