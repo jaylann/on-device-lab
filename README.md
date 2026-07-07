@@ -14,8 +14,11 @@ brew install xcodegen        # once, if you don't have it
 xcodegen generate           # builds OnDeviceLab.xcodeproj from project.yml
 open OnDeviceLab.xcodeproj
 ```
-In Xcode pick the **`OnDeviceLab (Solution)`** scheme, then ⌘R — the plain `OnDeviceLab` scheme
-leaves the teaching stubs unfilled, so it won't produce numbers.
+In Xcode, ⌘R to build and run. There are two schemes:
+- **`OnDeviceLab`** — your workspace. A handful of `TODO`s are left blank for you to fill in
+  ([see below](#the-tasks--fill-in-the-todos)); until you do, some demos won't produce numbers.
+- **`OnDeviceLab (Solution)`** — the finished reference. Run it to see everything working, or peek
+  when you get stuck.
 
 The first time you **Load** a model it downloads the weights (a few hundred MB to ~2 GB); after
 that it runs fully offline. Load each model once on any connection ahead of time.
@@ -85,6 +88,22 @@ A growing needle-in-a-trip-log prompt (~1k → ~16k tokens) sent to each engine.
 
 **The money shot:** Apple FM hits its **4,096-token hard wall** while the open windows keep going
 (Qwen3 32k · SmolLM3 64k · Qwen3.5 262k).
+
+## The tasks — fill in the TODOs
+On the plain `OnDeviceLab` scheme, the interesting lines are blank. Each demo is powered by one or
+two `TODO`s you write in — usually the same job twice, the open-weight way and the Apple FM way.
+The finished answers live in `OnDeviceLab/Solutions/Solutions.swift` (what the Solution scheme
+compiles), so you can check your work or unblock without hunting.
+
+| `TODO` | Powers | File | What you write |
+|---|---|---|---|
+| **1 & 2** | Chat → Benchmark | `Benchmark.swift` | stamp the first-token time and count streamed tokens — until then it reads `0 tok/s` |
+| **3a** | Extract · open-weight | `Engines/GrammarLock.swift` | the six-field JSON schema the grammar locks decoding to |
+| **3b** | Extract · Apple FM | `Demos/TicketExtraction.swift` | one `respond(generating:)` call that decodes straight into a typed struct |
+| **4a** | Tools · open-weight | `Demos/CarTools.swift` | route the model's tool call to the matching `CarToolbox` function |
+| **4b** | Tools · Apple FM | `Demos/CarTools.swift` | implement `WeatherTool.call` |
+
+Stuck on any of them? Switch to **`OnDeviceLab (Solution)`**, see it run, then come back.
 
 ## Reproducing the numbers headless
 `bench/` is a Python + Swift harness that measures the same TTFT/throughput from the command line
