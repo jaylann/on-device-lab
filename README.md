@@ -1,145 +1,95 @@
 # On-Device Lab
 
-A tiny SwiftUI app that runs an **open-weight LLM entirely on your Mac or iPhone** via
+A SwiftUI app that runs open-weight LLMs **entirely on your Mac or iPhone** via
 [MLX](https://github.com/ml-explore/mlx-swift) — no API key, no server, works in airplane mode.
-Built for the **Porsche Tech Day** code-along: load a model, stream tokens, and measure the
-two numbers that decide on-device UX — **TTFT** (time to first token) and **throughput** (tokens/sec).
+Built for the Porsche Tech Day talk *"Not Every On-Device AI Is Apple Intelligence."* Every demo
+runs the same job two ways — an **open-weight model** vs **Apple's Foundation Model** — so the
+audience sees the contrast live: latency, structured output, tool calling, and context limits.
 
-> Companion to the talk *"Not Every On-Device AI Is Apple Intelligence"* — open-weight models in
-> production on iPhone (NeatPass), and what they mean for the car.
-
----
-
-## Requirements
-- **Apple Silicon Mac** (M1 or newer — any of them, including Air)
-- **Xcode 26** and ~4 GB free disk. (The open-weight path builds on older Xcode too, but the
-  Apple Foundation Model tasks need the `FoundationModels` SDK that ships with Xcode 26.)
-- For the iPhone: an iPhone 12 or newer, iOS 17+
-
-The project is generated with [XcodeGen](https://github.com/yonaskolb/XcodeGen). The committed
-`.xcodeproj` works as-is; only run `xcodegen generate` if you change `project.yml`. No signing
-team is set on purpose — with none, macOS falls back to "Sign to Run Locally" and ⌘R just works.
-
-## Quick start
+## Run it
 ```bash
 git clone https://github.com/jaylann/on-device-lab
 cd on-device-lab
-open OnDeviceLab.xcodeproj      # then ⌘R
+open OnDeviceLab.xcodeproj
 ```
-Pick **Qwen3 0.6B · 4-bit**, press **Load** (it uses your pre-cached weights, or the local
-share — see below), type a prompt, press **Send**. Tokens stream. That's the whole on-device stack.
+In Xcode pick the **`OnDeviceLab (Solution)`** scheme, then ⌘R. **Use this scheme for
+presenting** — the plain `OnDeviceLab` scheme leaves the teaching stubs unfilled, so the demos
+won't produce numbers.
 
-> **Xcode red on ⌘R?** Signing → target → *Signing & Capabilities* → Team = **None / Sign to Run
-> Locally** (macOS needs no team). Mangled your checkout mid-exercise? `git stash` to park your
-> edits, or last resort `cd .. && rm -rf on-device-lab && git clone …` to start clean.
+The first time you **Load** a model it downloads the weights (a few hundred MB to ~2 GB); after
+that it runs fully offline. Load each model once on any connection before you go on stage.
 
----
+- **Requirements:** Apple Silicon Mac (M1 or newer), Xcode 26, ~4 GB free disk. On iPhone: iPhone 12+, iOS 17+.
+- **Signing:** none is set on purpose → macOS uses "Sign to Run Locally" and ⌘R just works.
+  (Red on ⌘R? Signing & Capabilities → Team = **None / Sign to Run Locally**.)
+- **Apple FM demos** need macOS 26 / iOS 26 with Apple Intelligence turned on. Without it, the
+  Apple FM lane politely sits out and the open-weight lanes still run everywhere.
 
-## The exercise — four milestones
+## The four engines
+Every screen races the same lineup:
 
-Each milestone maps to a round from the talk's "Gauntlet", and each coding task exists in two
-flavours: the **open-weight** way and the **Apple Foundation Model** way — the same job, opposite
-philosophies. That contrast is the whole point.
+| Engine | What it is |
+|---|---|
+| **Apple FM · ~3B** | Apple's on-device Foundation Model (needs Apple Intelligence) |
+| **Qwen3 0.6B · 4-bit** | tiny & fast — the one that fails just often enough to be interesting |
+| **SmolLM3 3B · 4-bit** | mid-size open-weight, 64k context |
+| **Qwen3.5 2B · 4-bit** | 262k context — the long-window contender |
 
-> **Everything is skippable.** Every `TODO` has a reference implementation in
-> `OnDeviceLab/Solutions/Solutions.swift`, compiled only by the **`OnDeviceLab (Solution)`**
-> scheme (`#if SOLUTION`). Stuck? Switch to that scheme to unblock — it keeps your own edits, and
-> the answers aren't sitting inline in the file you're editing (so no accidental spoilers).
->
-> **AFM tasks:** you *write* them on any Xcode 26, but they only *run* on macOS 26 + Apple
-> Intelligence. The open-weight tasks run on every Apple Silicon Mac.
+## The demos — five tabs
+The app is five tabs along the bottom. Each is one story; run them left to right for the talk.
 
-### M1 · Run it
-Load Qwen3 0.6B, prompt it, watch the stream. Done above. No code.
+### 💬 Chat — "it just runs on the device"
+The plain "load a model, stream tokens" screen.
+1. Tap the **Model** pill (top) → **Choose a model** → pick one (default **Qwen3 0.6B**).
+2. Press **Load** and wait for "Loaded".
+3. Type in the **Message** box and hit send. Tokens stream in; **TTFT** (ms) and **Tokens/s**
+   update live.
 
-### M2 · Measure it — round 1 (latency)
-`OnDeviceLab/Benchmark.swift`, `measure(...)`. Loop, warmup, percentiles, export are written.
-**Two lines are not** — `TODO 1` (stamp `firstTokenTime = Date()` on the first chunk) and
-`TODO 2` (increment `tokenCount` per chunk). Until then the **Benchmark** sheet reports `0 tok/s`.
-Fill them, hit **Run suite**, shout your numbers — we collect them across M1 → M4 chips. (Export
-JSON matches the Python harness schema in `bench/`.)
+The **Sample prompts** menu (toolbar) has ready-made prompts, and the **Benchmark** button
+(toolbar) runs a fixed suite over the lineup and exports the numbers as JSON. **The move:** start
+generating, then turn off Wi-Fi — it keeps streaming.
 
-### M3 · Extract it — round 2 (structured output)
-Pull six fields out of a messy charging receipt — the same schema, expressed two ways.
-- **Open-weight** — `TODO 3a` in `Engines/GrammarLock.swift`: finish the six-field `JSONSchema`
-  that XGrammar locks decoding to. *The schema is a value you hand the sampler.* Until then the
-  **Extract** tab reports five missing fields on every open-weight run.
-- **Apple FM** — `TODO 3b` in `TicketExtraction.swift`, `AFMExtractor.extractInvoice`: one
-  `session.respond(to:, generating: GenerableInvoice.self)` call. *The schema is a type — the
-  runtime constrained-decodes straight into it.*
+### 🏁 Arena — "race them side by side"
+The same prompt to all four engines at once, TTFT and tok/s reading like dashboard gauges.
+1. Pick a preset chip — **Range question**, **Receipt extraction**, **Why on-device?** — or type
+   your own prompt.
+2. Press the checkered-flag button. The fastest-TTFT and fastest-tok/s lanes highlight.
 
-Either way, malformed JSON is impossible — that's Round 2's point.
+The toolbar mode menu offers **Sequential** (default — one lane at a time, fair numbers) vs
+**Race mode** (all at once — looks dramatic, but the lanes fight over the GPU, so it warns that the
+numbers aren't comparable).
 
-### M4 · Tool it — round 3 (tool calling)
-`OnDeviceLab/Demos/CarTools.swift`. Answer a driver's question by calling car tools.
-- **Open-weight** — `TODO 4a` in `CarToolbox.dispatch(name:arguments:)`: the grammar lock
-  guarantees a *valid* call, but the loop is yours — route the wire names to the toolbox.
-  Until then every tool call on the **Tools** tab dead-ends as "unknown tool".
-- **Apple FM** — `TODO 4b` in `WeatherTool.call(arguments:)`: implement one `Tool` struct
-  (the other two are done for reference). *Typed structs; the runtime runs the call loop.*
+### `{ }` Extract — "structured output that can't be malformed"
+Pull six fields out of a messy EV-charging receipt, graded live against ground truth.
+1. Pick an **engine** chip (default **Qwen3 0.6B** — it misses fields, and a red dot on stage
+   beats three slides).
+2. Pick a **receipt** chip — **IONITY (clean)**, **EnBW (clean)**, or **Fastned (messy scan)**.
+3. Press **Run extraction**. Each of the six fields grades **green (right) or red (wrong)**, and
+   the **Scoreboard** tallies passes per engine.
 
-### Bonus · Stress it — round 4 (context)
-Switch to **Qwen3 4B** and feel what several billion more params cost. Pick **Long-context prompt**
-from the **Sample prompts** menu and watch the window fill. **Turn off Wi-Fi** mid-generation —
-it keeps streaming, fully offline. That's the entire thesis of the talk. Still going? Race the Arena.
+The open-weight path uses a grammar lock, so its JSON is always well-formed — wrong values, never
+broken syntax. Apple FM's failure mode is refusal, not malformed JSON. (Point that out.)
 
----
+### 🔧 Tools — "let the model call the car"
+Answer a driver's question by calling car tools; every hop draws itself into a trace timeline.
+1. Pick an **engine** chip (default **SmolLM3**).
+2. Edit the **Driver question** (default: *"I'm at 20% battery near Stuttgart — where should I
+   charge?"*).
+3. Send. The trace fills hop by hop: model turn → tool call → tool result → grounded answer.
 
-## Benchmark harness (reproducible, headless) — `bench/`
-A Python [`mlx-lm`](https://github.com/ml-explore/mlx-lm) harness that measures the same two numbers
-from the command line. Use it on your Mac, or over SSH on a cloud Apple-Silicon Mac.
-```bash
-cd bench
-./run.sh                                  # on-device: results.json + a Markdown table
-RUNS=8 MAX_TOKENS=200 ./run.sh            # tune it
-# add a measured cloud-API comparison row (your network, your key):
-CLOUD_API_KEY=sk-... CLOUD_MODEL=gpt-4o-mini ./run.sh
-```
-> **Apple Silicon only.** MLX runs on the Mac GPU via Metal — a generic Linux VM can't run it; an
-> "SSH box" must be an M-series Mac (e.g. a cloud Mac mini).
+### 🔎 Context — "where the window ends"
+A growing needle-in-a-trip-log prompt (~1k → ~16k tokens) sent to each engine.
+1. Pick a **size** chip (~1k / ~3k / ~5k / ~8k / ~16k tokens).
+2. Toggle the **engines** (multi-select; all on by default).
+3. Press **Send ~Nk tokens**. Rows accumulate so TTFT growth stays visible.
 
-See [`bench/README.md`](bench/README.md) for the cloud-probe backends and the AFM harness.
+**The money shot:** Apple FM hits its **4,096-token hard wall** while the open windows keep going
+(Qwen3 32k · SmolLM3 64k · Qwen3.5 262k).
 
----
-
-## Models & the venue Wi-Fi
-Six models, all 4-bit MLX quants:
-
-| Model | Class | Size |
-|---|---|---|
-| `Qwen3-0.6B-4bit` | extraction | ~0.3 GB |
-| `Qwen3-1.7B-4bit` | robust (the model NeatPass ships) | ~1 GB |
-| `Qwen3.5-2B-MLX-4bit` | arena / 262k context | ~1.4 GB |
-| `Qwen3-4B-4bit` | stress (bonus) | ~2.3 GB |
-| `SmolLM3-3B-4bit` | arena | ~1.7 GB |
-| `SmolLM2-1.7B-Instruct-MLX-4bit` | arena (community quant) | ~1 GB |
-
-**Before the venue — do this at home.** Open the app once on any internet and **Load** each model
-(0.6B, 1.7B, 4B). MLX caches the weights to `~/.cache/huggingface`, so from then on the app runs
-fully offline — no venue Wi-Fi, no USB needed. 25 people downloading ~3.6 GB each at 09:00 is the
-meltdown we're avoiding; a few minutes at home over breakfast spreads it out.
-
-**Backup only** — for a locked-down / offline machine that can't pre-download (some corp laptops
-block Hugging Face): grab pre-staged weights from the on-site local share.
-```bash
-./fetch-models.sh                 # stages ./models (run once, ahead of time)
-# copy ./models to the Mac's ~/Documents/models/  → the app loads them with zero network
-```
-
----
-
-## How it works
-- **MLX / mlx-swift** drives the Mac/phone GPU through Metal. `MLXLLM` + `MLXLMCommon`
-  (from [`mlx-swift-lm`](https://github.com/ml-explore/mlx-swift-lm), pinned to 2.31.3) provide
-  model loading, the tokenizer, and streaming generation.
-- `ModelCatalog` loads a `ModelContainer` (HF id or a local directory).
-- `LLMEngine` streams a chat reply (`ChatSession.streamResponse`).
-- The `#if SOLUTION` teaching TODOs, one open-weight + one Apple FM per round:
-  M2 in `Benchmark.swift` (measure) · M3a in `GrammarLock.swift` / M3b in
-  `TicketExtraction.swift` (extract) · M4a and M4b in `CarTools.swift` (tools).
-
-> **Presenting?** Run the **`OnDeviceLab (Solution)`** scheme so the Extract / Tools / Arena tabs
-> are fully wired for the live demos. Participants use the default scheme (the TODO stubs).
+## Reproducing the numbers headless
+`bench/` is a Python + Swift harness that measures the same TTFT/throughput from the command line
+(Apple Silicon only) and exports the same JSON schema the app does — so phone, Mac, and CLI runs
+feed the same numbers. See [`bench/README.md`](bench/README.md).
 
 ## License
 MIT — see [LICENSE](LICENSE). Model weights are under their own licenses (Qwen3, Apache-2.0).
