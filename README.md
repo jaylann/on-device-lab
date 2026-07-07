@@ -29,6 +29,35 @@ that it runs fully offline. Load each model once on any connection ahead of time
 - **Apple FM demos** need macOS 26 / iOS 26 with Apple Intelligence turned on. Without it, the
   Apple FM lane politely sits out and the open-weight lanes still run everywhere.
 
+## Running offline (venue distribution)
+No Wi-Fi at the venue, or 30 people about to download the same weights at once? The app reads
+models straight from `~/Documents/models/<repo-leaf>/` when present (see
+`ModelCatalog.localDirectory`) — no network, no in-app import step. Just get the folders there.
+
+**Easiest — pre-load beforehand.** On any connection, open the app and **Load** each model once.
+The weights cache locally and every run after that is fully offline. If everyone does this the
+night before, there's nothing to distribute.
+
+**No connection — hand out the `models` folder.** It holds the three folders the app needs
+(~3.4 GB total; Apple FM is a system model with no file):
+
+```
+models/
+  Qwen3-0.6B-4bit/
+  SmolLM3-3B-4bit/
+  Qwen3.5-2B-MLX-4bit/
+```
+
+Share the whole `models` folder however you like — USB stick or AirDrop — then on each Mac
+**drop it into `~/Documents/`**, so you end up with `~/Documents/models/Qwen3-0.6B-4bit/` and so
+on. That's the whole setup: no in-app step, and Load then runs with Wi-Fi off (the app reads
+`~/Documents/models/<name>/` directly — see `ModelCatalog.localDirectory`).
+
+- It must be `~/Documents/models/` — **not** `~/Library/Caches/…`; only the Documents path
+  loads without network. Keep the folder names exactly as above (they're the Hugging Face repo
+  leaf) — a rename or extra nesting makes the app silently download instead.
+- iPhone can't be sideloaded this way (sandboxed Documents) — pre-load on the phone beforehand.
+
 ## The four engines
 Every screen races the same lineup:
 
